@@ -4,8 +4,8 @@
   import { findResourceNodes, generateResourceFromNode, moveItems, countItemsAtPosition } from './beltSystem.js';
   import { generateProceduralMap } from './mapGenerator.js';
 
-  export let gridWidth = 100;
-  export let gridHeight = 100;
+  export let gridWidth = 50;
+  export let gridHeight = 50;
   export let cellSize = 20;
   export let gameMode = 'creative'; // 'newgame' or 'creative'
   export let isContinueMode = false; // Track if continuing saved game
@@ -166,24 +166,52 @@
   function getCellColor(cell) {
     switch (cell.type) {
       case 'wall':
-        return '#555555';
+        return '#555555'; // Gris original
       case 'resource':
-        return '#4CAF50';
+        return '#2d4a2d';
       case 'factory':
-        return '#2196F3';
+        return '#1e3a5f';
       case 'conveyor':
-        // Colores según velocidad de cinta
+        // Colores más sutiles para cintas
         const speedColors = {
-          1: '#FF9800', // Naranja (100%)
-          2: '#FFC107', // Ámbar (150%)
-          3: '#FFEB3B', // Amarillo (200%)
-          4: '#00E676', // Verde claro (250%)
-          5: '#00BCD4'  // Cian (300%)
+          1: '#3d2817', // Marrón oscuro
+          2: '#3d3317', // Marrón amarillento oscuro
+          3: '#3d3d17', // Amarillo oscuro
+          4: '#173d22', // Verde oscuro
+          5: '#17333d'  // Cian oscuro
         };
-        return speedColors[cell.speed || 1] || '#FF9800';
+        return speedColors[cell.speed || 1] || '#3d2817';
       default:
         return '#1a1a1a';
     }
+  }
+
+  // Obtener el icono de la celda según su tipo
+  function getCellIcon(cell) {
+    switch (cell.type) {
+      case 'wall':
+        return ''; // Sin icono para el muro
+      case 'resource':
+        return '💎';
+      case 'factory':
+        return '🏭';
+      case 'conveyor':
+        return ''; // Sin icono para cintas
+      default:
+        return '';
+    }
+  }
+
+  // Obtener el color del borde según la velocidad de la cinta
+  function getBeltBorderColor(speed) {
+    const colors = {
+      1: '#FF9800',  // Orange
+      2: '#FFC107',  // Gold/Yellow
+      3: '#FFEB3B',  // Bright Yellow
+      4: '#00E676',  // Green
+      5: '#00BCD4'   // Cyan
+    };
+    return colors[speed] || colors[1];
   }
 
   // Verificar si una cinta está llena
@@ -429,12 +457,16 @@
             background-color: {getCellColor(cell)};
             width: {cellSize}px;
             height: {cellSize}px;
+            border: {cell.type === 'conveyor' ? `3px solid ${getBeltBorderColor(cell.speed || 1)}` : (isBeltFull(x, y) ? '2px solid #f44336' : '1px solid #444')};
           "
           on:click={() => handleCellClick(x, y)}
           on:keydown={(e) => e.key === 'Enter' && handleCellClick(x, y)}
           role="button"
           tabindex="0"
         >
+          {#if cell.type !== 'empty'}
+            <div class="cell-icon">{getCellIcon(cell)}</div>
+          {/if}
           {#if cell.type === 'factory' && getStoredCount(x, y) > 0}
             <div class="factory-count">{getStoredCount(x, y)}</div>
           {/if}
@@ -664,6 +696,17 @@
 
   .cell:hover {
     opacity: 0.8;
+  }
+
+  .cell-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+    pointer-events: none;
+    z-index: 1;
+    user-select: none;
   }
 
   .belt-full {
