@@ -24,6 +24,7 @@
     if (gameMode === 'newgame') {
       // Generar mapa procedural para New Game
       grid = generateProceduralMap(gridWidth, gridHeight);
+      items = [];
       saveGrid();
     } else {
       // Modo Creative: intentar cargar o crear vacío
@@ -31,8 +32,13 @@
       
       if (savedGrid && savedGrid.width === gridWidth && savedGrid.height === gridHeight) {
         grid = savedGrid.cells;
+        // Cargar items en tránsito si existen
+        if (savedGrid.items && Array.isArray(savedGrid.items)) {
+          items = savedGrid.items;
+        }
       } else {
         grid = createEmptyGrid(gridWidth, gridHeight);
+        items = [];
         saveGrid();
       }
     }
@@ -50,7 +56,8 @@
     saveGridState({
       width: gridWidth,
       height: gridHeight,
-      cells: grid
+      cells: grid,
+      items: items // Guardar items en tránsito
     });
   }
 
@@ -71,6 +78,9 @@
       
       // Mover items por las cintas
       items = moveItems(grid, items, 0.15);
+      
+      // Guardar estado cada tick para preservar items
+      saveGrid();
     }, tickRate);
   }
 
@@ -170,6 +180,16 @@
   // Contar items almacenados en una fábrica
   function getStoredCount(x, y) {
     return items.filter(item => item.x === x && item.y === y && item.stored).length;
+  }
+
+  // Calcular total de items almacenados en todas las fábricas
+  function getTotalStored() {
+    return items.filter(item => item.stored).length;
+  }
+
+  // Calcular items en tránsito (no almacenados)
+  function getItemsInTransit() {
+    return items.filter(item => !item.stored).length;
   }
 
   // Limpiar toda la cuadrícula
@@ -310,8 +330,22 @@
     </div>
   </div>
   
-  <div class="toolbar-section stats">
-    <span>📦 {items.length}</span>
+  <div class="toolbar-section">
+    <h4>📊 Stats</h4>
+    <div class="stats">
+      <div class="stat-item">
+        <span class="stat-icon">🛍️</span>
+        <span class="stat-value">{getItemsInTransit()}</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-icon">🏭</span>
+        <span class="stat-value">{getTotalStored()}</span>
+      </div>
+      <div class="stat-item total">
+        <span class="stat-icon">📦</span>
+        <span class="stat-value">{items.length}</span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -483,10 +517,36 @@
   }
 
   .stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .stat-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .stat-item.total {
+    background: rgba(255, 215, 0, 0.1);
+    border-color: rgba(255, 215, 0, 0.3);
+  }
+
+  .stat-icon {
+    font-size: 1.2rem;
+  }
+
+  .stat-value {
     font-size: 1rem;
-    color: #FFD700;
     font-weight: bold;
-    text-align: center;
+    color: #FFD700;
   }
 
   .grid {
