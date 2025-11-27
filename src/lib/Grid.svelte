@@ -135,12 +135,16 @@
           if (currentType === 'conveyor' || currentType === 'factory') {
             grid[y][x].type = 'empty';
             grid[y][x].content = null;
+            // Eliminar todos los items en esta posición
+            items = items.filter(item => !(item.x === x && item.y === y));
           }
           // Si es wall o resource, no hacer nada
         } else {
           // Creative mode: borrar cualquier cosa
           grid[y][x].type = 'empty';
           grid[y][x].content = null;
+          // Eliminar todos los items en esta posición
+          items = items.filter(item => !(item.x === x && item.y === y));
         }
       } else {
         // Colocar el elemento seleccionado
