@@ -2,9 +2,9 @@
   import Grid from './lib/Grid.svelte';
   import Landing from './lib/Landing.svelte';
   
-  let gridWidth = 300;
-  let gridHeight = 300;
-  let cellSize = 20;
+  let gridWidth = 50;
+  let gridHeight = 50;
+  let cellSize = 15;
   let showSettings = false;
   let gameMode = null; // null = landing, 'newgame' or 'creative'
   let isContinueMode = false; // Track if continuing a saved game
