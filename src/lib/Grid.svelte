@@ -121,18 +121,37 @@
         lastFactoryGeneration = now;
       }
       
-      // Contar items almacenados antes de mover
-      const storedCountBefore = items.filter(i => i.stored).length;
+      // Guardar el estado de items por fábrica antes de mover
+      const itemsByFactoryBefore = {};
+      items.forEach(item => {
+        if (item.stored) {
+          const key = `${item.x},${item.y}`;
+          itemsByFactoryBefore[key] = (itemsByFactoryBefore[key] || 0) + 1;
+        }
+      });
       
       // Mover items por las cintas
       items = moveItems(grid, items, baseSpeed);
       
-      // Contar items almacenados después de mover
-      const storedCountAfter = items.filter(i => i.stored).length;
+      // Contar items por fábrica después de mover
+      const itemsByFactoryAfter = {};
+      items.forEach(item => {
+        if (item.stored) {
+          const key = `${item.x},${item.y}`;
+          itemsByFactoryAfter[key] = (itemsByFactoryAfter[key] || 0) + 1;
+        }
+      });
       
-      // Incrementar recursos del jugador si hay nuevos items almacenados
-      if (storedCountAfter > storedCountBefore) {
-        playerResources += (storedCountAfter - storedCountBefore);
+      // Incrementar el contador de recursos de cada fábrica individualmente
+      for (const key in itemsByFactoryAfter) {
+        const [x, y] = key.split(',').map(Number);
+        const before = itemsByFactoryBefore[key] || 0;
+        const after = itemsByFactoryAfter[key];
+        
+        if (after > before && grid[y] && grid[y][x] && grid[y][x].type === 'factory') {
+          grid[y][x].storedResources = (grid[y][x].storedResources || 0) + (after - before);
+          playerResources += (after - before);
+        }
       }
       
       // Actualizar cache de estadísticas
@@ -270,6 +289,18 @@
           items = items.filter(item => !(item.x === x && item.y === y));
         }
       } else {
+        // Si se hace clic en una fábrica con la herramienta de fábrica, rotarla
+        if (selectedTool === 'factory' && currentType === 'factory') {
+          const currentDir = grid[y][x].inputDirection || 'up';
+          const directions = ['up', 'right', 'down', 'left'];
+          const currentIndex = directions.indexOf(currentDir);
+          const nextIndex = (currentIndex + 1) % directions.length;
+          grid[y][x].inputDirection = directions[nextIndex];
+          grid = [...grid]; // Forzar reactividad
+          saveGrid();
+          return;
+        }
+        
         // Colocar el elemento seleccionado
         // En New Game y Continue, no se pueden colocar wall ni resource
         if ((gameMode === 'newgame' || isContinueMode) && (selectedTool === 'wall' || selectedTool === 'resource')) {
@@ -298,6 +329,7 @@
         // Si es fábrica, usar la dirección configurada y deducir recursos
         if (selectedTool === 'factory') {
           grid[y][x].inputDirection = factoryInputDirection;
+          grid[y][x].storedResources = 0; // Inicializar contador de recursos
           playerResources -= FACTORY_COST;
         }
       }
@@ -623,30 +655,6 @@
     </div>
   </div>
   
-  {#if selectedTool === 'factory'}
-    <div class="toolbar-section">
-      <h4>🔄 Direction</h4>
-      <div class="factory-rotation">
-        <button 
-          on:click={rotateFactoryDirection}
-          title="Rotate (R key)"
-          class="rotate-btn"
-        >
-          {#if factoryInputDirection === 'up'}
-            ↑ Input: Up
-          {:else if factoryInputDirection === 'right'}
-            → Input: Right
-          {:else if factoryInputDirection === 'down'}
-            ↓ Input: Down
-          {:else}
-            ← Input: Left
-          {/if}
-        </button>
-        <small style="color: #888; margin-top: 4px;">Press R to rotate</small>
-      </div>
-    </div>
-  {/if}
-  
   {#if selectedTool === 'conveyor'}
     <div class="toolbar-section">
       <h4>⚡ Speed</h4>
@@ -731,10 +739,6 @@
       <div class="stat-item">
         <span class="stat-icon">🏭</span>
         <span class="stat-value">{getTotalStored()}</span>
-      </div>
-      <div class="stat-item total">
-        <span class="stat-icon">📦</span>
-        <span class="stat-value">{items.length}</span>
       </div>
     </div>
   </div>
@@ -842,11 +846,8 @@
           {#if cell.type !== 'empty'}
             <div class="cell-icon">{getCellIcon(cell)}</div>
           {/if}
-          {#if cell.type === 'factory' && playerResources > 0}
+          {#if cell.type === 'factory' && (cell.storedResources || 0) > 0}
             <div class="factory-stored-indicator">⭐</div>
-          {/if}
-          {#if cell.type === 'factory' && playerResources > 0}
-            <div class="factory-resource-count">{playerResources}</div>
           {/if}
           {#if cell.type === 'factory'}
             {@const inputDir = cell.inputDirection || 'up'}
