@@ -7,6 +7,7 @@
   export let gridWidth = 50;
   export let gridHeight = 50;
   export let cellSize = 15;
+  export let targetFPS = 60; // FPS objetivo configurado por el usuario
   export let gameMode = 'creative'; // 'newgame' or 'creative'
   export let isContinueMode = false; // Track if continuing saved game
 
@@ -16,11 +17,25 @@
   let items = []; // Items moviéndose por las cintas
   let gameLoop;
   let isRunning = false;
-  let tickRate = 50; // ms entre cada tick (máxima fluidez)
+  let tickRate = 16; // ms entre cada tick (calculado desde targetFPS)
+  let baseSpeed = 0.02; // Velocidad base (calculada desde targetFPS)
   let resourceGenerationRate = 2000; // ms entre generación de recursos
   let lastResourceGeneration = 0;
   let tickCount = 0; // Contador de ticks
   let cachedStats = { inTransit: 0, stored: 0, total: 0 }; // Cache de estadísticas
+  
+  // Variables de rendimiento
+  let fps = 0;
+  let lastFrameTime = Date.now();
+  let frameCount = 0;
+  let avgTickTime = 0;
+  let showDebug = false;
+
+  // Calcular tickRate y baseSpeed basado en targetFPS
+  $: {
+    tickRate = Math.floor(1000 / targetFPS);
+    baseSpeed = targetFPS === 60 ? 0.02 : targetFPS === 30 ? 0.04 : targetFPS === 20 ? 0.06 : 0.05;
+  }
 
   // Inicializar la cuadrícula
   onMount(() => {
@@ -72,6 +87,7 @@
     gameLoop = setInterval(() => {
       if (!isRunning) return;
       
+      const tickStart = performance.now();
       tickCount++;
       
       // Generar recursos desde nodos
@@ -82,7 +98,7 @@
       }
       
       // Mover items por las cintas
-      items = moveItems(grid, items, 0.06);
+      items = moveItems(grid, items, baseSpeed);
       
       // Actualizar cache de estadísticas
       updateStatsCache();
@@ -90,6 +106,18 @@
       // Guardar estado solo cada 10 ticks (cada 2 segundos) para reducir operaciones de localStorage
       if (tickCount % 10 === 0) {
         saveGrid();
+      }
+      
+      // Calcular tiempo de tick
+      const tickEnd = performance.now();
+      avgTickTime = (avgTickTime * 0.9) + ((tickEnd - tickStart) * 0.1);
+      
+      // Calcular FPS
+      frameCount++;
+      if (now - lastFrameTime >= 1000) {
+        fps = frameCount;
+        frameCount = 0;
+        lastFrameTime = now;
       }
     }, tickRate);
   }
@@ -476,7 +504,63 @@
       </div>
     </div>
   </div>
+  
+  <div class="toolbar-section">
+    <button 
+      class="debug-toggle"
+      on:click={() => showDebug = !showDebug}
+      title="Toggle Performance Monitor"
+    >
+      {showDebug ? '📊' : '📈'}
+    </button>
+  </div>
 </div>
+
+{#if showDebug}
+  <div class="debug-panel">
+    <h4>🔍 Performance Monitor</h4>
+    <div class="debug-stats">
+      <div class="debug-item">
+        <span>Target FPS:</span>
+        <span>{targetFPS}</span>
+      </div>
+      <div class="debug-item">
+        <span>Actual FPS:</span>
+        <span class:warning={fps < targetFPS * 0.75} class:good={fps >= targetFPS * 0.75}>{fps}</span>
+      </div>
+      <div class="debug-item">
+        <span>Tick Time:</span>
+        <span class:warning={avgTickTime > tickRate * 0.75} class:good={avgTickTime <= tickRate * 0.75}>{avgTickTime.toFixed(2)}ms</span>
+      </div>
+      <div class="debug-item">
+        <span>Target:</span>
+        <span>{tickRate}ms</span>
+      </div>
+      <div class="debug-item">
+        <span>Grid Size:</span>
+        <span>{gridWidth}x{gridHeight}</span>
+      </div>
+      <div class="debug-item">
+        <span>Total Cells:</span>
+        <span>{gridWidth * gridHeight}</span>
+      </div>
+      <div class="debug-item">
+        <span>Active Items:</span>
+        <span>{items.length}</span>
+      </div>
+    </div>
+    <div class="debug-help">
+      <p><strong>Diagnostics:</strong></p>
+      <ul>
+        <li>Actual FPS &lt; Target: System overloaded</li>
+        <li>Tick Time &gt; {tickRate}ms: Game logic is slow</li>
+        <li>Too many items: Reduce resources/belts</li>
+        <li>Large grid: Try smaller size</li>
+        <li>Lower Target FPS: Easier on CPU</li>
+      </ul>
+    </div>
+  </div>
+{/if}
 
 <div class="grid-container">
 
@@ -485,6 +569,7 @@
     style="
       grid-template-columns: repeat({gridWidth}, {cellSize}px);
       grid-template-rows: repeat({gridHeight}, {cellSize}px);
+      --tick-rate: {tickRate}ms;
     "
   >
     {#each grid as row, y}
@@ -719,6 +804,103 @@
     color: #FFD700;
   }
 
+  .debug-toggle {
+    width: 50px;
+    height: 50px;
+    padding: 0;
+    background-color: #333;
+    color: white;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .debug-toggle:hover {
+    border-color: #646cff;
+    transform: scale(1.05);
+  }
+
+  .debug-panel {
+    position: fixed;
+    right: 20px;
+    top: 120px;
+    background: rgba(26, 26, 26, 0.95);
+    border: 2px solid #444;
+    border-radius: 12px;
+    padding: 1rem;
+    z-index: 1000;
+    min-width: 250px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+  }
+
+  .debug-panel h4 {
+    margin: 0 0 1rem 0;
+    color: #646cff;
+    font-size: 1rem;
+  }
+
+  .debug-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .debug-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.25rem 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+
+  .debug-item span:first-child {
+    color: #888;
+  }
+
+  .debug-item span:last-child {
+    font-weight: bold;
+    color: #FFD700;
+  }
+
+  .debug-item .warning {
+    color: #ff9800 !important;
+  }
+
+  .debug-item .good {
+    color: #4CAF50 !important;
+  }
+
+  .debug-help {
+    border-top: 1px solid #444;
+    padding-top: 0.75rem;
+    font-size: 0.85rem;
+    color: #888;
+  }
+
+  .debug-help p {
+    margin: 0 0 0.5rem 0;
+    color: #aaa;
+  }
+
+  .debug-help ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    list-style-type: disc;
+  }
+
+  .debug-help li {
+    margin-bottom: 0.25rem;
+    color: #888;
+  }
+
   .grid {
     display: grid;
     gap: 1px;
@@ -780,7 +962,7 @@
     border: 1px solid #FFA500;
     pointer-events: none;
     z-index: 10;
-    transition: left 0.05s ease-out, top 0.05s ease-out;
+    transition: left var(--tick-rate, 16ms) ease-out, top var(--tick-rate, 16ms) ease-out;
     will-change: left, top;
   }
 

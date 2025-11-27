@@ -5,6 +5,7 @@
   let gridWidth = 50;
   let gridHeight = 50;
   let cellSize = 15;
+  let targetFPS = 60; // FPS objetivo del usuario
   let showSettings = false;
   let gameMode = null; // null = landing, 'newgame' or 'creative'
   let isContinueMode = false; // Track if continuing a saved game
@@ -21,6 +22,7 @@
     gridWidth = Math.max(5, Math.min(50, gridWidth));
     gridHeight = Math.max(5, Math.min(50, gridHeight));
     cellSize = Math.max(10, Math.min(50, cellSize));
+    targetFPS = Math.max(15, Math.min(60, targetFPS));
     showSettings = false;
   }
 
@@ -77,6 +79,11 @@
           Cell size:
           <input type="number" bind:value={cellSize} min="10" max="50" />
         </label>
+        <label>
+          Target FPS:
+          <input type="number" bind:value={targetFPS} min="15" max="60" step="5" />
+          <span class="fps-hint">(15-60)</span>
+        </label>
       </div>
       <div class="settings-buttons">
         <button on:click={applySettings}>Apply</button>
@@ -86,7 +93,7 @@
     </div>
   {/if}
 
-  <Grid {gridWidth} {gridHeight} {cellSize} {gameMode} {isContinueMode} key={gridKey} />
+  <Grid {gridWidth} {gridHeight} {cellSize} {targetFPS} {gameMode} {isContinueMode} key={gridKey} />
 
   <footer>
     <p>💾 Progress automatically saves to localStorage</p>
@@ -232,6 +239,12 @@
     color: #ff9800;
     font-size: 0.9rem;
     text-align: center;
+  }
+
+  .fps-hint {
+    font-size: 0.8rem;
+    color: #888;
+    margin-left: 0.5rem;
   }
 
   footer {
