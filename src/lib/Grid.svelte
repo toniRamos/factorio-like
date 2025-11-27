@@ -6,7 +6,7 @@
 
   export let gridWidth = 50;
   export let gridHeight = 50;
-  export let cellSize = 20;
+  export let cellSize = 15;
   export let gameMode = 'creative'; // 'newgame' or 'creative'
   export let isContinueMode = false; // Track if continuing saved game
 
