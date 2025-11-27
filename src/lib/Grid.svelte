@@ -31,6 +31,16 @@
   let avgTickTime = 0;
   let showDebug = false;
 
+  // Variables para zoom y pan
+  let scale = 1;
+  let panX = 0;
+  let panY = 0;
+  let isDragging = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let lastPanX = 0;
+  let lastPanY = 0;
+
   // Calcular tickRate y baseSpeed basado en targetFPS
   $: {
     tickRate = Math.floor(1000 / targetFPS);
@@ -377,6 +387,87 @@
 
     return { offsetX, offsetY };
   }
+
+  // Funciones de zoom y pan
+  function handleWheel(event) {
+    event.preventDefault();
+    const delta = -event.deltaY;
+    const zoomFactor = delta > 0 ? 1.1 : 0.9;
+    const newScale = Math.max(0.5, Math.min(3, scale * zoomFactor));
+    scale = newScale;
+  }
+
+  function handleMouseDown(event) {
+    // Solo iniciar drag con botón izquierdo o rueda del ratón
+    if (event.button === 0 || event.button === 1) {
+      event.preventDefault();
+      isDragging = true;
+      dragStartX = event.clientX;
+      dragStartY = event.clientY;
+      lastPanX = panX;
+      lastPanY = panY;
+    }
+  }
+
+  function handleMouseMove(event) {
+    if (isDragging) {
+      const deltaX = event.clientX - dragStartX;
+      const deltaY = event.clientY - dragStartY;
+      
+      // Calcular el tamaño del contenedor
+      const container = event.currentTarget;
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      
+      // Calcular el tamaño real del grid escalado
+      const scaledWidth = (gridWidth * cellSize) * scale;
+      const scaledHeight = (gridHeight * cellSize) * scale;
+      
+      // Calcular posición propuesta
+      const proposedPanX = lastPanX + deltaX;
+      const proposedPanY = lastPanY + deltaY;
+      
+      // Límites: el grid debe estar siempre visible
+      // Si el grid es más pequeño que el contenedor, centrarlo
+      // Si el grid es más grande, permitir moverlo pero mantener siempre parte visible
+      let maxPanX, minPanX, maxPanY, minPanY;
+      
+      if (scaledWidth < containerWidth) {
+        // Grid más pequeño que contenedor - mantener centrado
+        maxPanX = 0;
+        minPanX = 0;
+      } else {
+        // Grid más grande - permitir movimiento limitado
+        maxPanX = (scaledWidth - containerWidth) / 2;
+        minPanX = -maxPanX;
+      }
+      
+      if (scaledHeight < containerHeight) {
+        // Grid más pequeño que contenedor - mantener centrado
+        maxPanY = 0;
+        minPanY = 0;
+      } else {
+        // Grid más grande - permitir movimiento limitado
+        maxPanY = (scaledHeight - containerHeight) / 2;
+        minPanY = -maxPanY;
+      }
+      
+      // Aplicar límites
+      panX = Math.max(minPanX, Math.min(maxPanX, proposedPanX));
+      panY = Math.max(minPanY, Math.min(maxPanY, proposedPanY));
+    }
+  }
+
+  function handleMouseUp() {
+    isDragging = false;
+  }
+
+  function resetView() {
+    scale = 1;
+    panX = 0;
+    panY = 0;
+  }
+
 </script>
 
 <!-- Floating Toolbar -->
@@ -484,6 +575,7 @@
         {isRunning ? '⏸' : '▶️'}
       </button>
       <button class="clear-btn" on:click={clearGrid} title="Clear All">🗑️</button>
+      <button on:click={resetView} title="Reset Zoom/Pan">🔍</button>
     </div>
   </div>
   
@@ -548,6 +640,10 @@
         <span>Active Items:</span>
         <span>{items.length}</span>
       </div>
+      <div class="debug-item">
+        <span>Zoom:</span>
+        <span>{(scale * 100).toFixed(0)}%</span>
+      </div>
     </div>
     <div class="debug-help">
       <p><strong>Diagnostics:</strong></p>
@@ -562,7 +658,14 @@
   </div>
 {/if}
 
-<div class="grid-container">
+<div class="grid-container"
+  on:wheel={handleWheel}
+  on:mousedown={handleMouseDown}
+  on:mousemove={handleMouseMove}
+  on:mouseup={handleMouseUp}
+  on:mouseleave={handleMouseUp}
+  style="cursor: {isDragging ? 'grabbing' : 'grab'};"
+>
 
   <div 
     class="grid" 
@@ -570,6 +673,8 @@
       grid-template-columns: repeat({gridWidth}, {cellSize}px);
       grid-template-rows: repeat({gridHeight}, {cellSize}px);
       --tick-rate: {tickRate}ms;
+      transform: translate(-50%, -50%) translate({panX}px, {panY}px) scale({scale});
+      transform-origin: center center;
     "
   >
     {#each grid as row, y}
@@ -650,8 +755,10 @@
   .grid-container {
     width: 100%;
     height: 100vh;
-    overflow: auto;
+    overflow: hidden;
     padding: 120px 1rem 60px 140px;
+    user-select: none;
+    position: relative;
   }
 
   .tools {
@@ -907,6 +1014,11 @@
     background-color: #333;
     border: 2px solid #555;
     padding: 1px;
+    transition: transform 0.1s ease-out;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform-origin: center center;
   }
 
   .cell {
@@ -915,6 +1027,7 @@
     transition: opacity 0.1s;
     position: relative;
     overflow: visible;
+    pointer-events: all;
   }
 
   .cell:hover {
