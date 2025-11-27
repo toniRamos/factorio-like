@@ -8,6 +8,7 @@
   export let gridHeight = 100;
   export let cellSize = 20;
   export let gameMode = 'creative'; // 'newgame' or 'creative'
+  export let isContinueMode = false; // Track if continuing saved game
 
   let grid = [];
   let selectedTool = 'conveyor'; // Herramienta seleccionada por defecto
@@ -109,8 +110,8 @@
       const currentType = grid[y][x].type;
       
       if (selectedTool === 'empty') {
-        // En New Game, solo se pueden borrar Belt y Factory
-        if (gameMode === 'newgame') {
+        // En New Game y Continue, solo se pueden borrar Belt y Factory
+        if (gameMode === 'newgame' || isContinueMode) {
           if (currentType === 'conveyor' || currentType === 'factory') {
             grid[y][x].type = 'empty';
             grid[y][x].content = null;
@@ -123,8 +124,8 @@
         }
       } else {
         // Colocar el elemento seleccionado
-        // En New Game, no se pueden colocar wall ni resource
-        if (gameMode === 'newgame' && (selectedTool === 'wall' || selectedTool === 'resource')) {
+        // En New Game y Continue, no se pueden colocar wall ni resource
+        if ((gameMode === 'newgame' || isContinueMode) && (selectedTool === 'wall' || selectedTool === 'resource')) {
           return; // No hacer nada
         }
         
@@ -137,11 +138,11 @@
 
   // Verificar si una herramienta está disponible en el modo actual
   function isToolAvailable(tool) {
-    if (gameMode === 'creative') {
-      return true; // Todas las herramientas disponibles
+    if (gameMode === 'creative' && !isContinueMode) {
+      return true; // Todas las herramientas disponibles solo en Creative nuevo
     }
     
-    // En New Game, solo Belt, Factory y Erase están disponibles
+    // En New Game y Continue, solo Belt, Factory y Erase están disponibles
     return tool === 'conveyor' || tool === 'factory' || tool === 'empty';
   }
 

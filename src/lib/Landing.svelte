@@ -1,10 +1,27 @@
 <script>
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   
   const dispatch = createEventDispatcher();
+  let hasSavedGame = false;
+  
+  onMount(() => {
+    // Check if there's saved game data
+    const saved = localStorage.getItem('factorio-grid-state');
+    hasSavedGame = saved !== null;
+  });
+  
+  function continueGame() {
+    dispatch('start', { mode: 'creative', continue: true });
+  }
   
   function startNewGame() {
-    dispatch('start', { mode: 'newgame' });
+    if (hasSavedGame) {
+      if (confirm('⚠️ Starting a new game will overwrite your current saved progress. Are you sure you want to continue?')) {
+        dispatch('start', { mode: 'newgame' });
+      }
+    } else {
+      dispatch('start', { mode: 'newgame' });
+    }
   }
   
   function startCreative() {
@@ -20,10 +37,18 @@
     </div>
 
     <div class="menu">
+      {#if hasSavedGame}
+        <button class="menu-button continue" on:click={continueGame}>
+          <span class="icon">💾</span>
+          <span class="text">Continue</span>
+          <span class="description">Resume your saved game</span>
+        </button>
+      {/if}
+
       <button class="menu-button primary" on:click={startNewGame}>
         <span class="icon">🎮</span>
         <span class="text">New Game</span>
-        <span class="description">Start with an empty grid</span>
+        <span class="description">Start with procedurally generated map</span>
       </button>
 
       <button class="menu-button secondary" on:click={startCreative}>
@@ -134,6 +159,16 @@
   .menu-button.primary:hover {
     background: rgba(100, 108, 255, 0.1);
     border-color: #747bff;
+  }
+
+  .menu-button.continue {
+    border-color: #4CAF50;
+  }
+
+  .menu-button.continue:hover {
+    background: rgba(76, 175, 80, 0.1);
+    border-color: #66BB6A;
+    box-shadow: 0 8px 24px rgba(76, 175, 80, 0.3);
   }
 
   .menu-button.secondary {

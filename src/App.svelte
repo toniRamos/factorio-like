@@ -7,10 +7,12 @@
   let cellSize = 20;
   let showSettings = false;
   let gameMode = null; // null = landing, 'newgame' or 'creative'
+  let isContinueMode = false; // Track if continuing a saved game
   let gridKey = 0; // Para forzar recreación del componente Grid
 
   function handleStart(event) {
     gameMode = event.detail.mode;
+    isContinueMode = event.detail.continue || false;
     gridKey++; // Forzar recreación del Grid con el nuevo modo
   }
 
@@ -36,14 +38,22 @@
     <div class="game-header">
       <div class="title-section">
         <h1>🏭 Factorio-like Game</h1>
-        <span class="mode-badge">{gameMode === 'creative' ? '⚙️ Creative Mode' : '🎮 New Game'}</span>
+        <span class="mode-badge">
+          {#if isContinueMode}
+            💾 Continue
+          {:else if gameMode === 'creative'}
+            ⚙️ Creative Mode
+          {:else}
+            🎮 New Game
+          {/if}
+        </span>
       </div>
       <button class="back-button" on:click={backToMenu}>
         ← Back to Menu
       </button>
     </div>
 
-  {#if gameMode === 'creative'}
+  {#if gameMode === 'creative' && !isContinueMode}
     <div class="controls">
       <button on:click={() => showSettings = !showSettings}>
         ⚙️ Settings
@@ -51,7 +61,7 @@
     </div>
   {/if}
 
-  {#if showSettings && gameMode === 'creative'}
+  {#if showSettings && gameMode === 'creative' && !isContinueMode}
     <div class="settings-panel">
       <h3>Grid Configuration</h3>
       <div class="settings-group">
@@ -76,7 +86,7 @@
     </div>
   {/if}
 
-  <Grid {gridWidth} {gridHeight} {cellSize} {gameMode} key={gridKey} />
+  <Grid {gridWidth} {gridHeight} {cellSize} {gameMode} {isContinueMode} key={gridKey} />
 
   <footer>
     <p>💾 Progress automatically saves to localStorage</p>
