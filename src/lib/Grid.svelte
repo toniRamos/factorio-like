@@ -16,7 +16,7 @@
   let items = []; // Items moviéndose por las cintas
   let gameLoop;
   let isRunning = false;
-  let tickRate = 200; // ms entre cada tick
+  let tickRate = 50; // ms entre cada tick (máxima fluidez)
   let resourceGenerationRate = 2000; // ms entre generación de recursos
   let lastResourceGeneration = 0;
   let tickCount = 0; // Contador de ticks
@@ -82,7 +82,7 @@
       }
       
       // Mover items por las cintas
-      items = moveItems(grid, items, 0.15);
+      items = moveItems(grid, items, 0.06);
       
       // Actualizar cache de estadísticas
       updateStatsCache();
@@ -776,7 +776,8 @@
     border: 1px solid #FFA500;
     pointer-events: none;
     z-index: 10;
-    transition: left 0.15s linear, top 0.15s linear;
+    transition: left 0.05s ease-out, top 0.05s ease-out;
+    will-change: left, top;
   }
 
   .item.blocked {
