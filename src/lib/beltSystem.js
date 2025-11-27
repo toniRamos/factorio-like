@@ -186,7 +186,7 @@ export function canAcceptItem(grid, items, x, y) {
 }
 
 // Mover items por las cintas
-export function moveItems(grid, items, speed = 0.1) {
+export function moveItems(grid, items, baseSpeed = 0.15) {
   const newItems = [];
   
   for (const item of items) {
@@ -200,6 +200,13 @@ export function moveItems(grid, items, speed = 0.1) {
       newItems.push(updatedItem);
       continue;
     }
+    
+    // Calcular velocidad según el tier de la cinta
+    // Tier 1: 100% (1.0x), Tier 2: 150% (1.5x), Tier 3: 200% (2.0x), Tier 4: 250% (2.5x), Tier 5: 300% (3.0x)
+    const currentCell = grid[item.y] && grid[item.y][item.x];
+    const beltSpeed = currentCell && currentCell.speed ? currentCell.speed : 1;
+    const speedMultiplier = 0.5 + (beltSpeed * 0.5); // 1: 1.0x, 2: 1.5x, 3: 2.0x, 4: 2.5x, 5: 3.0x
+    const speed = baseSpeed * speedMultiplier;
     
     // Intentar encontrar siguiente posición
     const nextPos = getNextBeltPosition(grid, item.x, item.y, item.prevX, item.prevY);

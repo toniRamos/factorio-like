@@ -12,6 +12,7 @@
 
   let grid = [];
   let selectedTool = 'conveyor'; // Herramienta seleccionada por defecto
+  let selectedBeltSpeed = 1; // Velocidad de cinta seleccionada (1-5)
   let items = []; // Items moviéndose por las cintas
   let gameLoop;
   let isRunning = false;
@@ -140,6 +141,11 @@
         }
         
         grid[y][x].type = selectedTool;
+        
+        // Si es cinta, asignar velocidad
+        if (selectedTool === 'conveyor') {
+          grid[y][x].speed = selectedBeltSpeed;
+        }
       }
       grid = [...grid]; // Forzar reactividad
       saveGrid();
@@ -166,7 +172,15 @@
       case 'factory':
         return '#2196F3';
       case 'conveyor':
-        return '#FF9800';
+        // Colores según velocidad de cinta
+        const speedColors = {
+          1: '#FF9800', // Naranja (100%)
+          2: '#FFC107', // Ámbar (150%)
+          3: '#FFEB3B', // Amarillo (200%)
+          4: '#00E676', // Verde claro (250%)
+          5: '#00BCD4'  // Cian (300%)
+        };
+        return speedColors[cell.speed || 1] || '#FF9800';
       default:
         return '#1a1a1a';
     }
@@ -319,6 +333,54 @@
       </button>
     </div>
   </div>
+  
+  {#if selectedTool === 'conveyor'}
+    <div class="toolbar-section">
+      <h4>⚡ Speed</h4>
+      <div class="belt-speeds">
+        <button 
+          class:active={selectedBeltSpeed === 1}
+          on:click={() => selectedBeltSpeed = 1}
+          title="Tier 1 - 100% speed"
+          style="background-color: #FF9800;"
+        >
+          1
+        </button>
+        <button 
+          class:active={selectedBeltSpeed === 2}
+          on:click={() => selectedBeltSpeed = 2}
+          title="Tier 2 - 150% speed"
+          style="background-color: #FFC107;"
+        >
+          2
+        </button>
+        <button 
+          class:active={selectedBeltSpeed === 3}
+          on:click={() => selectedBeltSpeed = 3}
+          title="Tier 3 - 200% speed"
+          style="background-color: #FFEB3B;"
+        >
+          3
+        </button>
+        <button 
+          class:active={selectedBeltSpeed === 4}
+          on:click={() => selectedBeltSpeed = 4}
+          title="Tier 4 - 250% speed"
+          style="background-color: #00E676;"
+        >
+          4
+        </button>
+        <button 
+          class:active={selectedBeltSpeed === 5}
+          on:click={() => selectedBeltSpeed = 5}
+          title="Tier 5 - 300% speed"
+          style="background-color: #00BCD4;"
+        >
+          5
+        </button>
+      </div>
+    </div>
+  {/if}
   
   <div class="toolbar-section">
     <h4>⚙️ Controls</h4>
@@ -514,6 +576,41 @@
 
   .clear-btn:hover {
     background-color: #b71c1c !important;
+  }
+
+  .belt-speeds {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .belt-speeds button {
+    width: 50px;
+    height: 50px;
+    padding: 0;
+    color: white;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1.2rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+
+  .belt-speeds button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  }
+
+  .belt-speeds button.active {
+    border-color: white;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+    transform: scale(1.1);
   }
 
   .stats {
