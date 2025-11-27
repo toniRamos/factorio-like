@@ -136,7 +136,7 @@
 
   // Limpiar toda la cuadrícula
   function clearGrid() {
-    if (confirm('¿Estás seguro de que quieres limpiar toda la cuadrícula?')) {
+    if (confirm('Are you sure you want to clear the entire grid?')) {
       grid = createEmptyGrid(gridWidth, gridHeight);
       items = [];
       saveGrid();
@@ -214,47 +214,47 @@
 
 <div class="grid-container">
   <div class="toolbar">
-    <h3>Herramientas:</h3>
+    <h3>Tools:</h3>
     <div class="tools">
       <button 
         class:active={selectedTool === 'empty'} 
         on:click={() => selectedTool = 'empty'}
       >
-        Borrar
+        Erase
       </button>
       <button 
         class:active={selectedTool === 'wall'} 
         on:click={() => selectedTool = 'wall'}
       >
-        Muro
+        Wall
       </button>
       <button 
         class:active={selectedTool === 'resource'} 
         on:click={() => selectedTool = 'resource'}
       >
-        Recurso
+        Resource
       </button>
       <button 
         class:active={selectedTool === 'factory'} 
         on:click={() => selectedTool = 'factory'}
       >
-        Fábrica
+        Factory
       </button>
       <button 
         class:active={selectedTool === 'conveyor'} 
         on:click={() => selectedTool = 'conveyor'}
       >
-        Cinta
+        Belt
       </button>
     </div>
     <div class="controls">
       <button on:click={togglePause}>
-        {isRunning ? '⏸ Pausar' : '▶️ Reanudar'}
+        {isRunning ? '⏸ Pause' : '▶️ Resume'}
       </button>
-      <button class="clear-btn" on:click={clearGrid}>Limpiar Todo</button>
+      <button class="clear-btn" on:click={clearGrid}>Clear All</button>
     </div>
     <div class="stats">
-      <span>Items en tránsito: {items.length}</span>
+      <span>Items in transit: {items.length}</span>
     </div>
   </div>
 

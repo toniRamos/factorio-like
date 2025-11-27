@@ -1,10 +1,16 @@
 <script>
   import Grid from './lib/Grid.svelte';
+  import Landing from './lib/Landing.svelte';
   
   let gridWidth = 20;
   let gridHeight = 20;
   let cellSize = 30;
   let showSettings = false;
+  let gameMode = null; // null = landing, 'newgame' or 'creative'
+
+  function handleStart(event) {
+    gameMode = event.detail.mode;
+  }
 
   function applySettings() {
     // Asegurar que los valores sean válidos
@@ -13,11 +19,28 @@
     cellSize = Math.max(10, Math.min(50, cellSize));
     showSettings = false;
   }
+
+  function backToMenu() {
+    if (confirm('Are you sure you want to return to the main menu? Unsaved progress will be lost.')) {
+      gameMode = null;
+    }
+  }
 </script>
 
-<main>
-  <h1>🏭 Factorio-like Game</h1>
-  <p class="subtitle">Juego de construcción y automatización en 2D</p>
+{#if gameMode === null}
+  <Landing on:start={handleStart} />
+{:else}
+  <main>
+    <div class="game-header">
+      <div class="title-section">
+        <h1>🏭 Factorio-like Game</h1>
+        <span class="mode-badge">{gameMode === 'creative' ? '⚙️ Creative Mode' : '🎮 New Game'}</span>
+      </div>
+      <button class="back-button" on:click={backToMenu}>
+        ← Back to Menu
+      </button>
+    </div>
+    <p class="subtitle">2D factory building and automation game</p>
 
   <div class="controls">
     <button on:click={() => showSettings = !showSettings}>
@@ -53,15 +76,57 @@
   <Grid {gridWidth} {gridHeight} {cellSize} />
 
   <footer>
-    <p>💾 El progreso se guarda automáticamente en localStorage</p>
+    <p>💾 Progress automatically saves to localStorage</p>
   </footer>
 </main>
+{/if}
 
 <style>
   main {
     max-width: 100%;
     margin: 0 auto;
     padding: 1rem;
+  }
+
+  .game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .title-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .mode-badge {
+    background: rgba(100, 108, 255, 0.2);
+    border: 1px solid #646cff;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    color: #646cff;
+    font-weight: 500;
+  }
+
+  .back-button {
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #444;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .back-button:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: #646cff;
   }
 
   h1 {
@@ -150,6 +215,15 @@
 
     .settings-group input {
       background-color: white;
+      color: #213547;
+    }
+
+    .mode-badge {
+      background: rgba(100, 108, 255, 0.1);
+    }
+
+    .back-button {
+      background: rgba(0, 0, 0, 0.05);
       color: #213547;
     }
   }
