@@ -15,6 +15,8 @@
   let selectedTool = 'conveyor'; // Herramienta seleccionada por defecto
   let selectedBeltSpeed = 1; // Velocidad de cinta seleccionada (1-5)
   let factoryInputDirection = 'up'; // Dirección de entrada para nuevas fábricas
+  let playerResources = 10; // Recursos del jugador para construir
+  const FACTORY_COST = 10; // Costo de construir una fábrica
   let items = []; // Items moviéndose por las cintas
   let gameLoop;
   let isRunning = false;
@@ -119,8 +121,19 @@
         lastFactoryGeneration = now;
       }
       
+      // Contar items almacenados antes de mover
+      const storedCountBefore = items.filter(i => i.stored).length;
+      
       // Mover items por las cintas
       items = moveItems(grid, items, baseSpeed);
+      
+      // Contar items almacenados después de mover
+      const storedCountAfter = items.filter(i => i.stored).length;
+      
+      // Incrementar recursos del jugador si hay nuevos items almacenados
+      if (storedCountAfter > storedCountBefore) {
+        playerResources += (storedCountAfter - storedCountBefore);
+      }
       
       // Actualizar cache de estadísticas
       updateStatsCache();
@@ -235,6 +248,10 @@
         // En New Game y Continue, solo se pueden borrar Belt y Factory
         if (gameMode === 'newgame' || isContinueMode) {
           if (currentType === 'conveyor' || currentType === 'factory') {
+            // Si es una fábrica, devolver el costo al jugador
+            if (currentType === 'factory') {
+              playerResources += FACTORY_COST;
+            }
             grid[y][x].type = 'empty';
             grid[y][x].content = null;
             // Eliminar todos los items en esta posición
@@ -243,6 +260,10 @@
           // Si es wall o resource, no hacer nada
         } else {
           // Creative mode: borrar cualquier cosa
+          // Si es una fábrica, devolver el costo al jugador
+          if (currentType === 'factory') {
+            playerResources += FACTORY_COST;
+          }
           grid[y][x].type = 'empty';
           grid[y][x].content = null;
           // Eliminar todos los items en esta posición
@@ -260,6 +281,13 @@
           return; // No hacer nada si la celda ya está ocupada
         }
         
+        // Si es fábrica, verificar que tenga recursos suficientes
+        if (selectedTool === 'factory') {
+          if (playerResources < FACTORY_COST) {
+            return; // No se pueden construir fábricas sin recursos
+          }
+        }
+        
         grid[y][x].type = selectedTool;
         
         // Si es cinta, asignar velocidad
@@ -267,9 +295,10 @@
           grid[y][x].speed = selectedBeltSpeed;
         }
         
-        // Si es fábrica, usar la dirección configurada
+        // Si es fábrica, usar la dirección configurada y deducir recursos
         if (selectedTool === 'factory') {
           grid[y][x].inputDirection = factoryInputDirection;
+          playerResources -= FACTORY_COST;
         }
       }
       grid = [...grid]; // Forzar reactividad
@@ -678,6 +707,21 @@
   </div>
   
   <div class="toolbar-section">
+    <h4>💰 Resources</h4>
+    <div class="stats">
+      <div class="stat-item resource-count" class:insufficient={playerResources < FACTORY_COST && selectedTool === 'factory'}>
+        <span class="stat-icon">💎</span>
+        <span class="stat-value">{playerResources}</span>
+      </div>
+      {#if selectedTool === 'factory'}
+        <div class="factory-cost">
+          <small>Factory: {FACTORY_COST} 💎</small>
+        </div>
+      {/if}
+    </div>
+  </div>
+  
+  <div class="toolbar-section">
     <h4>📊 Stats</h4>
     <div class="stats">
       <div class="stat-item">
@@ -779,7 +823,7 @@
       {#each row as cell, x}
         {@const cellKey = `${x},${y}`}
         {@const cellItems = itemsByPosition[cellKey] || []}
-        {@const storedCount = cell.type === 'factory' ? (cellItems.filter(i => i.stored).length || 0) : 0}
+        {@const storedCount = playerResources}
         <div
           class="cell"
           class:belt-full={cell.type === 'conveyor' && isBeltFull(x, y)}
@@ -798,8 +842,11 @@
           {#if cell.type !== 'empty'}
             <div class="cell-icon">{getCellIcon(cell)}</div>
           {/if}
-          {#if cell.type === 'factory' && storedCount > 0}
+          {#if cell.type === 'factory' && playerResources > 0}
             <div class="factory-stored-indicator">⭐</div>
+          {/if}
+          {#if cell.type === 'factory' && playerResources > 0}
+            <div class="factory-resource-count">{playerResources}</div>
           {/if}
           {#if cell.type === 'factory'}
             {@const inputDir = cell.inputDirection || 'up'}
@@ -1030,6 +1077,35 @@
     border-color: rgba(255, 215, 0, 0.3);
   }
 
+  .stat-item.resource-count {
+    background: rgba(76, 175, 80, 0.1);
+    border-color: rgba(76, 175, 80, 0.3);
+  }
+
+  .stat-item.insufficient {
+    background: rgba(244, 67, 54, 0.15);
+    border-color: rgba(244, 67, 54, 0.4);
+    animation: pulse-warning 1s ease-in-out infinite;
+  }
+
+  @keyframes pulse-warning {
+    0%, 100% {
+      border-color: rgba(244, 67, 54, 0.4);
+    }
+    50% {
+      border-color: rgba(244, 67, 54, 0.8);
+    }
+  }
+
+  .factory-cost {
+    text-align: center;
+    color: #888;
+    font-size: 0.85rem;
+    padding: 0.25rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+  }
+
   .stat-icon {
     font-size: 1.2rem;
   }
@@ -1189,6 +1265,21 @@
     z-index: 7;
     filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0.8));
     animation: pulse-star 2s ease-in-out infinite;
+  }
+
+  .factory-resource-count {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background-color: rgba(76, 175, 80, 0.9);
+    color: white;
+    font-size: 9px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 8;
+    border: 1px solid rgba(255, 255, 255, 0.3);
   }
 
   @keyframes pulse-star {
