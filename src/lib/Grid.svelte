@@ -19,6 +19,8 @@
   let tickRate = 200; // ms entre cada tick
   let resourceGenerationRate = 2000; // ms entre generación de recursos
   let lastResourceGeneration = 0;
+  let tickCount = 0; // Contador de ticks
+  let cachedStats = { inTransit: 0, stored: 0, total: 0 }; // Cache de estadísticas
 
   // Inicializar la cuadrícula
   onMount(() => {
@@ -70,6 +72,8 @@
     gameLoop = setInterval(() => {
       if (!isRunning) return;
       
+      tickCount++;
+      
       // Generar recursos desde nodos
       const now = Date.now();
       if (now - lastResourceGeneration >= resourceGenerationRate) {
@@ -80,8 +84,13 @@
       // Mover items por las cintas
       items = moveItems(grid, items, 0.15);
       
-      // Guardar estado cada tick para preservar items
-      saveGrid();
+      // Actualizar cache de estadísticas
+      updateStatsCache();
+      
+      // Guardar estado solo cada 10 ticks (cada 2 segundos) para reducir operaciones de localStorage
+      if (tickCount % 10 === 0) {
+        saveGrid();
+      }
     }, tickRate);
   }
 
@@ -214,24 +223,42 @@
     return colors[speed] || colors[1];
   }
 
-  // Verificar si una cinta está llena
+  // Actualizar cache de estadísticas
+  function updateStatsCache() {
+    let stored = 0;
+    let inTransit = 0;
+    for (const item of items) {
+      if (item.stored) stored++;
+      else inTransit++;
+    }
+    cachedStats = { inTransit, stored, total: items.length };
+  }
+
+  // Verificar si una cinta está llena (usa el mapa de items)
   function isBeltFull(x, y) {
-    return countItemsAtPosition(items, x, y) >= 3;
+    const key = `${x},${y}`;
+    return (itemsByPosition[key]?.length || 0) >= 3;
   }
 
-  // Contar items almacenados en una fábrica
+  // Contar items almacenados en una fábrica (usa el mapa de items)
   function getStoredCount(x, y) {
-    return items.filter(item => item.x === x && item.y === y && item.stored).length;
+    const key = `${x},${y}`;
+    const cellItems = itemsByPosition[key] || [];
+    let count = 0;
+    for (const item of cellItems) {
+      if (item.stored) count++;
+    }
+    return count;
   }
 
-  // Calcular total de items almacenados en todas las fábricas
+  // Calcular total de items almacenados en todas las fábricas (usa cache)
   function getTotalStored() {
-    return items.filter(item => item.stored).length;
+    return cachedStats.stored;
   }
 
-  // Calcular items en tránsito (no almacenados)
+  // Calcular items en tránsito (usa cache)
   function getItemsInTransit() {
-    return items.filter(item => !item.stored).length;
+    return cachedStats.inTransit;
   }
 
   // Limpiar toda la cuadrícula
@@ -242,6 +269,14 @@
       saveGrid();
     }
   }
+
+  // Crear mapa de items por posición para renderizado eficiente
+  $: itemsByPosition = items.reduce((map, item) => {
+    const key = `${item.x},${item.y}`;
+    if (!map[key]) map[key] = [];
+    map[key].push(item);
+    return map;
+  }, {});
 
   // Calcular la posición visual del item basado en su progreso y dirección
   function getItemPosition(item, index, totalInCell) {
@@ -450,6 +485,9 @@
   >
     {#each grid as row, y}
       {#each row as cell, x}
+        {@const cellKey = `${x},${y}`}
+        {@const cellItems = itemsByPosition[cellKey] || []}
+        {@const storedCount = cell.type === 'factory' ? (cellItems.filter(i => i.stored).length || 0) : 0}
         <div
           class="cell"
           class:belt-full={cell.type === 'conveyor' && isBeltFull(x, y)}
@@ -467,11 +505,10 @@
           {#if cell.type !== 'empty'}
             <div class="cell-icon">{getCellIcon(cell)}</div>
           {/if}
-          {#if cell.type === 'factory' && getStoredCount(x, y) > 0}
-            <div class="factory-count">{getStoredCount(x, y)}</div>
+          {#if cell.type === 'factory' && storedCount > 0}
+            <div class="factory-count">{storedCount}</div>
           {/if}
-          {#each items.filter(item => item.x === x && item.y === y) as item, index (item.id)}
-            {@const cellItems = items.filter(i => i.x === x && i.y === y)}
+          {#each cellItems as item, index (item.id)}
             {@const pos = getItemPosition(item, index, cellItems.length)}
             <div 
               class="item"
