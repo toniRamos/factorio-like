@@ -255,6 +255,11 @@
           return; // No hacer nada
         }
         
+        // No permitir colocar sobre una celda que ya tiene algo (excepto empty)
+        if (currentType !== 'empty') {
+          return; // No hacer nada si la celda ya está ocupada
+        }
+        
         grid[y][x].type = selectedTool;
         
         // Si es cinta, asignar velocidad
