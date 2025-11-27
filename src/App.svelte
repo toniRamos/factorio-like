@@ -44,32 +44,32 @@
 
   <div class="controls">
     <button on:click={() => showSettings = !showSettings}>
-      ⚙️ Configuración
+      ⚙️ Settings
     </button>
   </div>
 
   {#if showSettings}
     <div class="settings-panel">
-      <h3>Configuración de la Cuadrícula</h3>
+      <h3>Grid Configuration</h3>
       <div class="settings-group">
         <label>
-          Ancho:
+          Width:
           <input type="number" bind:value={gridWidth} min="5" max="50" />
         </label>
         <label>
-          Alto:
+          Height:
           <input type="number" bind:value={gridHeight} min="5" max="50" />
         </label>
         <label>
-          Tamaño de celda:
+          Cell size:
           <input type="number" bind:value={cellSize} min="10" max="50" />
         </label>
       </div>
       <div class="settings-buttons">
-        <button on:click={applySettings}>Aplicar</button>
-        <button on:click={() => showSettings = false}>Cancelar</button>
+        <button on:click={applySettings}>Apply</button>
+        <button on:click={() => showSettings = false}>Cancel</button>
       </div>
-      <p class="warning">⚠️ Cambiar el tamaño puede reiniciar la cuadrícula</p>
+      <p class="warning">⚠️ Changing size may reset the grid</p>
     </div>
   {/if}
 
