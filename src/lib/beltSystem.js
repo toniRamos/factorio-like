@@ -57,8 +57,15 @@ export function getNextBeltPosition(grid, x, y, fromX, fromY) {
       const newY = y + continueStraight.dy;
       if (grid[newY] && grid[newY][newX]) {
         const cellType = grid[newY][newX].type;
-        if (cellType === 'conveyor' || cellType === 'factory') {
+        if (cellType === 'conveyor') {
           candidates.push({ x: newX, y: newY, dir: continueStraight.dir, type: cellType, priority: 1 });
+        } else if (cellType === 'factory') {
+          // Solo agregar si el item viene desde la dirección de entrada de la fábrica
+          const factory = grid[newY][newX];
+          const inputDir = factory.inputDirection || 'up';
+          if (isComingFromInputDirection(x, y, newX, newY, inputDir)) {
+            candidates.push({ x: newX, y: newY, dir: continueStraight.dir, type: cellType, priority: 1 });
+          }
         }
       }
     }
@@ -81,8 +88,15 @@ export function getNextBeltPosition(grid, x, y, fromX, fromY) {
     
     if (grid[newY] && grid[newY][newX]) {
       const cellType = grid[newY][newX].type;
-      if (cellType === 'conveyor' || cellType === 'factory') {
+      if (cellType === 'conveyor') {
         candidates.push({ x: newX, y: newY, dir, type: cellType, priority: 0 });
+      } else if (cellType === 'factory') {
+        // Solo agregar si el item viene desde la dirección de entrada de la fábrica
+        const factory = grid[newY][newX];
+        const inputDir = factory.inputDirection || 'up';
+        if (isComingFromInputDirection(x, y, newX, newY, inputDir)) {
+          candidates.push({ x: newX, y: newY, dir, type: cellType, priority: 0 });
+        }
       }
     }
   }
@@ -130,6 +144,25 @@ export function getNextBeltPosition(grid, x, y, fromX, fromY) {
   outputTracker[posKey] = (outputTracker[posKey] + 1) % options.length;
   
   return selected;
+}
+
+// Verificar si el item viene desde la dirección de entrada de la fábrica
+function isComingFromInputDirection(fromX, fromY, factoryX, factoryY, inputDirection) {
+  const dx = fromX - factoryX;
+  const dy = fromY - factoryY;
+  
+  switch (inputDirection) {
+    case 'up':
+      return dy === -1 && dx === 0; // Item viene desde arriba
+    case 'down':
+      return dy === 1 && dx === 0;  // Item viene desde abajo
+    case 'left':
+      return dx === -1 && dy === 0; // Item viene desde la izquierda
+    case 'right':
+      return dx === 1 && dy === 0;  // Item viene desde la derecha
+    default:
+      return true; // Por defecto permitir entrada
+  }
 }
 
 // Generar un nuevo recurso desde un nodo de recurso
@@ -315,4 +348,84 @@ export function findResourceNodes(grid) {
   }
   
   return nodes;
+}
+
+// Buscar todas las fábricas que tienen cintas adyacentes
+export function findFactoriesWithBelts(grid) {
+  const factories = [];
+  
+  for (let y = 0; y < grid.length; y++) {
+    for (let x = 0; x < grid[y].length; x++) {
+      if (grid[y][x].type === 'factory') {
+        const adjacentBelts = getAdjacentBelts(grid, x, y);
+        if (adjacentBelts.length > 0) {
+          factories.push({ x, y });
+        }
+      }
+    }
+  }
+  
+  return factories;
+}
+
+// Generar un item desde una fábrica hacia una cinta
+export function generateItemFromFactory(grid, x, y, items) {
+  const factory = grid[y][x];
+  const inputDir = factory.inputDirection || 'up';
+  
+  // Calcular la dirección de salida (opuesta a la entrada)
+  const outputDir = getOppositeDirection(inputDir);
+  
+  // Obtener la posición de salida
+  const outputPos = getPositionInDirection(x, y, outputDir);
+  
+  if (outputPos && grid[outputPos.y] && grid[outputPos.y][outputPos.x]) {
+    const targetCell = grid[outputPos.y][outputPos.x];
+    
+    // Solo generar si hay una cinta en la dirección de salida
+    if (targetCell.type === 'conveyor' && canAcceptItem(grid, items, outputPos.x, outputPos.y)) {
+      const newItem = {
+        id: `item-${Date.now()}-${Math.random()}`,
+        x: outputPos.x,
+        y: outputPos.y,
+        prevX: x,
+        prevY: y,
+        progress: 0,
+        type: 'resource',
+        stored: false,
+        blocked: false
+      };
+      
+      return newItem;
+    }
+  }
+  
+  return null;
+}
+
+// Obtener la dirección opuesta
+function getOppositeDirection(direction) {
+  const opposites = {
+    'up': 'down',
+    'down': 'up',
+    'left': 'right',
+    'right': 'left'
+  };
+  return opposites[direction] || 'down';
+}
+
+// Obtener la posición en una dirección específica
+function getPositionInDirection(x, y, direction) {
+  const offsets = {
+    'up': { dx: 0, dy: -1 },
+    'down': { dx: 0, dy: 1 },
+    'left': { dx: -1, dy: 0 },
+    'right': { dx: 1, dy: 0 }
+  };
+  
+  const offset = offsets[direction];
+  if (offset) {
+    return { x: x + offset.dx, y: y + offset.dy };
+  }
+  return null;
 }

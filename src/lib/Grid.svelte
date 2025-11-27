@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { saveGridState, loadGridState, createEmptyGrid } from './gridUtils.js';
-  import { findResourceNodes, generateResourceFromNode, moveItems, countItemsAtPosition } from './beltSystem.js';
+  import { findResourceNodes, generateResourceFromNode, findFactoriesWithBelts, generateItemFromFactory, moveItems, countItemsAtPosition } from './beltSystem.js';
   import { generateProceduralMap } from './mapGenerator.js';
 
   export let gridWidth = 50;
@@ -14,6 +14,7 @@
   let grid = [];
   let selectedTool = 'conveyor'; // Herramienta seleccionada por defecto
   let selectedBeltSpeed = 1; // Velocidad de cinta seleccionada (1-5)
+  let factoryInputDirection = 'up'; // Dirección de entrada para nuevas fábricas
   let items = []; // Items moviéndose por las cintas
   let gameLoop;
   let isRunning = false;
@@ -21,6 +22,7 @@
   let baseSpeed = 0.02; // Velocidad base (calculada desde targetFPS)
   let resourceGenerationRate = 2000; // ms entre generación de recursos
   let lastResourceGeneration = 0;
+  let lastFactoryGeneration = 0;
   let tickCount = 0; // Contador de ticks
   let cachedStats = { inTransit: 0, stored: 0, total: 0 }; // Cache de estadísticas
   
@@ -71,11 +73,15 @@
       }
     }
 
+    // Añadir listener de teclado
+    window.addEventListener('keydown', handleKeyPress);
+
     // Iniciar el game loop
     startGameLoop();
   });
 
   onDestroy(() => {
+    window.removeEventListener('keydown', handleKeyPress);
     stopGameLoop();
   });
 
@@ -105,6 +111,12 @@
       if (now - lastResourceGeneration >= resourceGenerationRate) {
         generateResources();
         lastResourceGeneration = now;
+      }
+      
+      // Generar items desde fábricas hacia cintas
+      if (now - lastFactoryGeneration >= resourceGenerationRate) {
+        generateFromFactories();
+        lastFactoryGeneration = now;
       }
       
       // Mover items por las cintas
@@ -162,6 +174,58 @@
     }
   }
 
+  // Generar items desde fábricas hacia cintas
+  function generateFromFactories() {
+    const factories = findFactoriesWithBelts(grid);
+    
+    for (const factory of factories) {
+      // Solo generar si la fábrica tiene items almacenados
+      const storedItems = items.filter(item => item.x === factory.x && item.y === factory.y && item.stored);
+      if (storedItems.length > 0) {
+        const newItem = generateItemFromFactory(grid, factory.x, factory.y, items);
+        if (newItem) {
+          // Remover un item almacenado de la fábrica
+          const itemToRemove = storedItems[0];
+          items = items.filter(item => item.id !== itemToRemove.id);
+          // Añadir el nuevo item en la cinta
+          items = [...items, newItem];
+        }
+      }
+    }
+  }
+
+  // Rotar la dirección de entrada de fábrica antes de colocar
+  function rotateFactoryDirection() {
+    const directions = ['up', 'right', 'down', 'left'];
+    const currentIndex = directions.indexOf(factoryInputDirection);
+    const nextIndex = (currentIndex + 1) % directions.length;
+    factoryInputDirection = directions[nextIndex];
+  }
+
+  // Manejar clic derecho para rotar fábricas ya colocadas
+  function handleRightClick(event, x, y) {
+    event.preventDefault();
+    if (grid[y] && grid[y][x] && grid[y][x].type === 'factory') {
+      // Rotar la dirección de entrada: up -> right -> down -> left -> up
+      const directions = ['up', 'right', 'down', 'left'];
+      const currentDir = grid[y][x].inputDirection || 'up';
+      const currentIndex = directions.indexOf(currentDir);
+      const nextIndex = (currentIndex + 1) % directions.length;
+      grid[y][x].inputDirection = directions[nextIndex];
+      grid = [...grid];
+      saveGrid();
+    }
+  }
+
+  // Manejar teclas
+  function handleKeyPress(event) {
+    if (event.key === 'r' || event.key === 'R') {
+      if (selectedTool === 'factory') {
+        rotateFactoryDirection();
+      }
+    }
+  }
+
   // Manejar clic en una celda
   function handleCellClick(x, y) {
     if (grid[y] && grid[y][x]) {
@@ -196,6 +260,11 @@
         // Si es cinta, asignar velocidad
         if (selectedTool === 'conveyor') {
           grid[y][x].speed = selectedBeltSpeed;
+        }
+        
+        // Si es fábrica, usar la dirección configurada
+        if (selectedTool === 'factory') {
+          grid[y][x].inputDirection = factoryInputDirection;
         }
       }
       grid = [...grid]; // Forzar reactividad
@@ -505,7 +574,7 @@
         class:active={selectedTool === 'factory'} 
         class:disabled={!isToolAvailable('factory')}
         on:click={() => isToolAvailable('factory') && (selectedTool = 'factory')}
-        title="Factory"
+        title="Factory - Press R to rotate"
       >
         🏭
       </button>
@@ -519,6 +588,30 @@
       </button>
     </div>
   </div>
+  
+  {#if selectedTool === 'factory'}
+    <div class="toolbar-section">
+      <h4>🔄 Direction</h4>
+      <div class="factory-rotation">
+        <button 
+          on:click={rotateFactoryDirection}
+          title="Rotate (R key)"
+          class="rotate-btn"
+        >
+          {#if factoryInputDirection === 'up'}
+            ↑ Input: Up
+          {:else if factoryInputDirection === 'right'}
+            → Input: Right
+          {:else if factoryInputDirection === 'down'}
+            ↓ Input: Down
+          {:else}
+            ← Input: Left
+          {/if}
+        </button>
+        <small style="color: #888; margin-top: 4px;">Press R to rotate</small>
+      </div>
+    </div>
+  {/if}
   
   {#if selectedTool === 'conveyor'}
     <div class="toolbar-section">
@@ -692,6 +785,7 @@
             border: {cell.type === 'conveyor' ? `3px solid ${getBeltBorderColor(cell.speed || 1)}` : (isBeltFull(x, y) ? '2px solid #f44336' : '1px solid #444')};
           "
           on:click={() => handleCellClick(x, y)}
+          on:contextmenu={(e) => handleRightClick(e, x, y)}
           on:keydown={(e) => e.key === 'Enter' && handleCellClick(x, y)}
           role="button"
           tabindex="0"
@@ -700,19 +794,25 @@
             <div class="cell-icon">{getCellIcon(cell)}</div>
           {/if}
           {#if cell.type === 'factory' && storedCount > 0}
-            <div class="factory-count">{storedCount}</div>
+            <div class="factory-stored-indicator">⭐</div>
+          {/if}
+          {#if cell.type === 'factory'}
+            {@const inputDir = cell.inputDirection || 'up'}
+            <div class="factory-input-indicator factory-input-{inputDir}"></div>
+            <div class="factory-output-indicator factory-output-{inputDir}"></div>
           {/if}
           {#each cellItems as item, index (item.id)}
             {@const pos = getItemPosition(item, index, cellItems.length)}
-            <div 
-              class="item"
-              class:stored={item.stored}
-              class:blocked={item.blocked}
-              style="
-                left: calc(50% + {pos.offsetX}px);
-                top: calc(50% + {pos.offsetY}px);
-              "
-            />
+            {#if !item.stored}
+              <div 
+                class="item"
+                class:blocked={item.blocked}
+                style="
+                  left: calc(50% + {pos.offsetX}px);
+                  top: calc(50% + {pos.offsetY}px);
+                "
+              />
+            {/if}
           {/each}
         </div>
       {/each}
@@ -805,6 +905,30 @@
   .tools button.disabled:hover {
     border-color: transparent;
     transform: none;
+  }
+
+  .factory-rotation {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    align-items: stretch;
+  }
+
+  .rotate-btn {
+    padding: 0.5rem;
+    background-color: #333;
+    color: white;
+    border: 2px solid #555;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+
+  .rotate-btn:hover {
+    border-color: #646cff;
+    background-color: #404040;
   }
 
   .controls {
@@ -1050,18 +1174,101 @@
     box-shadow: inset 0 0 5px rgba(244, 67, 54, 0.5);
   }
 
-  .factory-count {
+  .factory-stored-indicator {
     position: absolute;
-    top: 2px;
-    right: 2px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    font-size: 10px;
-    padding: 1px 4px;
-    border-radius: 3px;
-    font-weight: bold;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 8px;
     pointer-events: none;
-    z-index: 5;
+    z-index: 7;
+    filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0.8));
+    animation: pulse-star 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-star {
+    0%, 100% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: translate(-50%, -50%) scale(1.15);
+      opacity: 0.8;
+    }
+  }
+
+  /* Indicadores de entrada/salida de fábrica */
+  .factory-input-indicator,
+  .factory-output-indicator {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 6;
+    border: 2px solid rgba(0, 0, 0, 0.4);
+  }
+
+  .factory-input-indicator {
+    background-color: #4CAF50;
+    box-shadow: 0 0 8px rgba(76, 175, 80, 1), inset 0 0 4px rgba(255, 255, 255, 0.6);
+  }
+
+  .factory-output-indicator {
+    background-color: #f44336;
+    box-shadow: 0 0 8px rgba(244, 67, 54, 1), inset 0 0 4px rgba(255, 255, 255, 0.6);
+  }
+
+  /* Posiciones para entrada arriba */
+  .factory-input-up {
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .factory-output-up {
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  /* Posiciones para entrada derecha */
+  .factory-input-right {
+    right: -5px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .factory-output-right {
+    left: -5px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  /* Posiciones para entrada abajo */
+  .factory-input-down {
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .factory-output-down {
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  /* Posiciones para entrada izquierda */
+  .factory-input-left {
+    left: -5px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .factory-output-left {
+    right: -5px;
+    top: 50%;
+    transform: translateY(-50%);
   }
 
   .item {
@@ -1094,13 +1301,6 @@
     50% {
       transform: translate(-50%, -50%) scale(1.1);
     }
-  }
-
-  .item.stored {
-    background-color: #4CAF50;
-    box-shadow: 0 0 4px rgba(76, 175, 80, 0.8);
-    border-color: #2E7D32;
-    transition: none;
   }
 
   @media (max-width: 768px) {
