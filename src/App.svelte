@@ -2,14 +2,16 @@
   import Grid from './lib/Grid.svelte';
   import Landing from './lib/Landing.svelte';
   
-  let gridWidth = 20;
-  let gridHeight = 20;
-  let cellSize = 30;
+  let gridWidth = 300;
+  let gridHeight = 300;
+  let cellSize = 20;
   let showSettings = false;
   let gameMode = null; // null = landing, 'newgame' or 'creative'
+  let gridKey = 0; // Para forzar recreación del componente Grid
 
   function handleStart(event) {
     gameMode = event.detail.mode;
+    gridKey++; // Forzar recreación del Grid con el nuevo modo
   }
 
   function applySettings() {
@@ -40,15 +42,16 @@
         ← Back to Menu
       </button>
     </div>
-    <p class="subtitle">2D factory building and automation game</p>
 
-  <div class="controls">
-    <button on:click={() => showSettings = !showSettings}>
-      ⚙️ Settings
-    </button>
-  </div>
+  {#if gameMode === 'creative'}
+    <div class="controls">
+      <button on:click={() => showSettings = !showSettings}>
+        ⚙️ Settings
+      </button>
+    </div>
+  {/if}
 
-  {#if showSettings}
+  {#if showSettings && gameMode === 'creative'}
     <div class="settings-panel">
       <h3>Grid Configuration</h3>
       <div class="settings-group">
@@ -73,7 +76,7 @@
     </div>
   {/if}
 
-  <Grid {gridWidth} {gridHeight} {cellSize} />
+  <Grid {gridWidth} {gridHeight} {cellSize} {gameMode} key={gridKey} />
 
   <footer>
     <p>💾 Progress automatically saves to localStorage</p>
@@ -84,17 +87,30 @@
 <style>
   main {
     max-width: 100%;
-    margin: 0 auto;
-    padding: 1rem;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
   }
 
   .game-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 900;
+    background: rgba(26, 26, 26, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 2px solid #444;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.5rem;
+    padding: 0.75rem 1rem;
     flex-wrap: wrap;
     gap: 1rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
   }
 
   .title-section {
@@ -135,12 +151,24 @@
   }
 
   .subtitle {
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 899;
     color: #888;
-    margin-bottom: 2rem;
+    margin: 0;
+    padding: 0.5rem 1rem;
+    background: rgba(26, 26, 26, 0.8);
+    border-radius: 0 0 8px 8px;
+    font-size: 0.9rem;
   }
 
   .controls {
-    margin-bottom: 1rem;
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    z-index: 899;
   }
 
   .settings-panel {
@@ -197,14 +225,23 @@
   }
 
   footer {
-    margin-top: 3rem;
-    padding-top: 1rem;
-    border-top: 1px solid #444;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 900;
+    background: rgba(26, 26, 26, 0.95);
+    backdrop-filter: blur(10px);
+    border-top: 2px solid #444;
+    padding: 0.5rem 1rem;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
   }
 
   footer p {
     color: #888;
     font-size: 0.9rem;
+    margin: 0;
+    text-align: center;
   }
 
   @media (prefers-color-scheme: light) {

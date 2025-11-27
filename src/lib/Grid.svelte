@@ -2,13 +2,15 @@
   import { onMount, onDestroy } from 'svelte';
   import { saveGridState, loadGridState, createEmptyGrid } from './gridUtils.js';
   import { findResourceNodes, generateResourceFromNode, moveItems, countItemsAtPosition } from './beltSystem.js';
+  import { generateProceduralMap } from './mapGenerator.js';
 
-  export let gridWidth = 20;
-  export let gridHeight = 20;
-  export let cellSize = 30;
+  export let gridWidth = 100;
+  export let gridHeight = 100;
+  export let cellSize = 20;
+  export let gameMode = 'creative'; // 'newgame' or 'creative'
 
   let grid = [];
-  let selectedTool = 'wall'; // Herramienta seleccionada
+  let selectedTool = 'conveyor'; // Herramienta seleccionada por defecto
   let items = []; // Items moviéndose por las cintas
   let gameLoop;
   let isRunning = false;
@@ -18,13 +20,20 @@
 
   // Inicializar la cuadrícula
   onMount(() => {
-    const savedGrid = loadGridState();
-    
-    if (savedGrid && savedGrid.width === gridWidth && savedGrid.height === gridHeight) {
-      grid = savedGrid.cells;
-    } else {
-      grid = createEmptyGrid(gridWidth, gridHeight);
+    if (gameMode === 'newgame') {
+      // Generar mapa procedural para New Game
+      grid = generateProceduralMap(gridWidth, gridHeight);
       saveGrid();
+    } else {
+      // Modo Creative: intentar cargar o crear vacío
+      const savedGrid = loadGridState();
+      
+      if (savedGrid && savedGrid.width === gridWidth && savedGrid.height === gridHeight) {
+        grid = savedGrid.cells;
+      } else {
+        grid = createEmptyGrid(gridWidth, gridHeight);
+        saveGrid();
+      }
     }
 
     // Iniciar el game loop
@@ -97,15 +106,43 @@
   // Manejar clic en una celda
   function handleCellClick(x, y) {
     if (grid[y] && grid[y][x]) {
+      const currentType = grid[y][x].type;
+      
       if (selectedTool === 'empty') {
-        grid[y][x].type = 'empty';
-        grid[y][x].content = null;
+        // En New Game, solo se pueden borrar Belt y Factory
+        if (gameMode === 'newgame') {
+          if (currentType === 'conveyor' || currentType === 'factory') {
+            grid[y][x].type = 'empty';
+            grid[y][x].content = null;
+          }
+          // Si es wall o resource, no hacer nada
+        } else {
+          // Creative mode: borrar cualquier cosa
+          grid[y][x].type = 'empty';
+          grid[y][x].content = null;
+        }
       } else {
+        // Colocar el elemento seleccionado
+        // En New Game, no se pueden colocar wall ni resource
+        if (gameMode === 'newgame' && (selectedTool === 'wall' || selectedTool === 'resource')) {
+          return; // No hacer nada
+        }
+        
         grid[y][x].type = selectedTool;
       }
       grid = [...grid]; // Forzar reactividad
       saveGrid();
     }
+  }
+
+  // Verificar si una herramienta está disponible en el modo actual
+  function isToolAvailable(tool) {
+    if (gameMode === 'creative') {
+      return true; // Todas las herramientas disponibles
+    }
+    
+    // En New Game, solo Belt, Factory y Erase están disponibles
+    return tool === 'conveyor' || tool === 'factory' || tool === 'empty';
   }
 
   // Obtener el color de la celda según su tipo
@@ -212,51 +249,72 @@
   }
 </script>
 
-<div class="grid-container">
-  <div class="toolbar">
-    <h3>Tools:</h3>
+<!-- Floating Toolbar -->
+<div class="floating-toolbar">
+  <div class="toolbar-section">
+    <h4>🔧 Tools</h4>
     <div class="tools">
       <button 
         class:active={selectedTool === 'empty'} 
-        on:click={() => selectedTool = 'empty'}
+        class:disabled={!isToolAvailable('empty')}
+        on:click={() => isToolAvailable('empty') && (selectedTool = 'empty')}
+        title="Erase"
       >
-        Erase
+        🗑️
       </button>
-      <button 
-        class:active={selectedTool === 'wall'} 
-        on:click={() => selectedTool = 'wall'}
-      >
-        Wall
-      </button>
-      <button 
-        class:active={selectedTool === 'resource'} 
-        on:click={() => selectedTool = 'resource'}
-      >
-        Resource
-      </button>
+      {#if isToolAvailable('wall')}
+        <button 
+          class:active={selectedTool === 'wall'} 
+          on:click={() => selectedTool = 'wall'}
+          title="Wall"
+        >
+          🧱
+        </button>
+      {/if}
+      {#if isToolAvailable('resource')}
+        <button 
+          class:active={selectedTool === 'resource'} 
+          on:click={() => selectedTool = 'resource'}
+          title="Resource"
+        >
+          💎
+        </button>
+      {/if}
       <button 
         class:active={selectedTool === 'factory'} 
-        on:click={() => selectedTool = 'factory'}
+        class:disabled={!isToolAvailable('factory')}
+        on:click={() => isToolAvailable('factory') && (selectedTool = 'factory')}
+        title="Factory"
       >
-        Factory
+        🏭
       </button>
       <button 
         class:active={selectedTool === 'conveyor'} 
-        on:click={() => selectedTool = 'conveyor'}
+        class:disabled={!isToolAvailable('conveyor')}
+        on:click={() => isToolAvailable('conveyor') && (selectedTool = 'conveyor')}
+        title="Belt"
       >
-        Belt
+        ➡️
       </button>
-    </div>
-    <div class="controls">
-      <button on:click={togglePause}>
-        {isRunning ? '⏸ Pause' : '▶️ Resume'}
-      </button>
-      <button class="clear-btn" on:click={clearGrid}>Clear All</button>
-    </div>
-    <div class="stats">
-      <span>Items in transit: {items.length}</span>
     </div>
   </div>
+  
+  <div class="toolbar-section">
+    <h4>⚙️ Controls</h4>
+    <div class="controls">
+      <button on:click={togglePause}>
+        {isRunning ? '⏸' : '▶️'}
+      </button>
+      <button class="clear-btn" on:click={clearGrid} title="Clear All">🗑️</button>
+    </div>
+  </div>
+  
+  <div class="toolbar-section stats">
+    <span>📦 {items.length}</span>
+  </div>
+</div>
+
+<div class="grid-container">
 
   <div 
     class="grid" 
@@ -303,69 +361,131 @@
 </div>
 
 <style>
-  .grid-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2rem;
+  .floating-toolbar {
+    position: fixed;
+    left: 20px;
+    top: 120px;
+    background: rgba(26, 26, 26, 0.95);
+    border: 2px solid #444;
+    border-radius: 12px;
     padding: 1rem;
-  }
-
-  .toolbar {
+    z-index: 1000;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.5rem;
+    min-width: 80px;
+  }
+
+  .toolbar-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
     align-items: center;
   }
 
-  .toolbar h3 {
+  .toolbar-section h4 {
     margin: 0;
+    font-size: 0.9rem;
+    color: #888;
+    text-align: center;
+  }
+
+  .grid-container {
+    width: 100%;
+    height: 100vh;
+    overflow: auto;
+    padding: 120px 1rem 60px 140px;
   }
 
   .tools {
     display: flex;
+    flex-direction: column;
     gap: 0.5rem;
-    flex-wrap: wrap;
-    justify-content: center;
+    align-items: center;
   }
 
   .tools button {
-    padding: 0.5rem 1rem;
+    width: 50px;
+    height: 50px;
+    padding: 0;
     background-color: #333;
     color: white;
     border: 2px solid transparent;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .tools button:hover {
     border-color: #646cff;
+    transform: scale(1.05);
   }
 
   .tools button.active {
     border-color: #646cff;
     background-color: #1a1a2e;
+    box-shadow: 0 0 10px rgba(100, 108, 255, 0.5);
   }
 
-  .clear-btn {
-    background-color: #d32f2f;
-    color: white;
+  .tools button.disabled {
+    background-color: #1a1a1a;
+    color: #555;
+    cursor: not-allowed;
+    opacity: 0.5;
   }
 
-  .clear-btn:hover {
-    background-color: #b71c1c;
+  .tools button.disabled:hover {
+    border-color: transparent;
+    transform: none;
   }
 
   .controls {
     display: flex;
+    flex-direction: column;
     gap: 0.5rem;
-    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .controls button {
+    width: 50px;
+    height: 50px;
+    padding: 0;
+    background-color: #333;
+    color: white;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
     justify-content: center;
   }
 
+  .controls button:hover {
+    border-color: #646cff;
+    transform: scale(1.05);
+  }
+
+  .clear-btn {
+    background-color: #d32f2f !important;
+  }
+
+  .clear-btn:hover {
+    background-color: #b71c1c !important;
+  }
+
   .stats {
-    font-size: 0.9rem;
-    color: #888;
+    font-size: 1rem;
+    color: #FFD700;
+    font-weight: bold;
+    text-align: center;
   }
 
   .grid {
