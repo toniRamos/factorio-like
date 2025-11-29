@@ -1,0 +1,640 @@
+.floating-toolbar {
+  position: fixed;
+  left: 20px;
+  top: 120px;
+  background: rgba(26, 26, 26, 0.95);
+  border: 2px solid #444;
+  border-radius: 12px;
+  padding: 1rem;
+  z-index: 1000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 80px;
+}
+
+.toolbar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.toolbar-section h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #888;
+  text-align: center;
+}
+
+.grid-container {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  padding: 120px 1rem 60px 140px;
+  user-select: none;
+  position: relative;
+}
+
+.tools {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.tools button {
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  background-color: #333;
+  color: white;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tools button:hover {
+  border-color: #646cff;
+  transform: scale(1.05);
+}
+
+.tools button.active {
+  border-color: #646cff;
+  background-color: #1a1a2e;
+  box-shadow: 0 0 10px rgba(100, 108, 255, 0.5);
+}
+
+.tools button.disabled {
+  background-color: #1a1a1a;
+  color: #555;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.tools button.disabled:hover {
+  border-color: transparent;
+  transform: none;
+}
+
+.factory-rotation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: stretch;
+}
+
+.rotate-btn {
+  padding: 0.5rem;
+  background-color: #333;
+  color: white;
+  border: 2px solid #555;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.rotate-btn:hover {
+  border-color: #646cff;
+  background-color: #404040;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.controls button {
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  background-color: #333;
+  color: white;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.controls button:hover {
+  border-color: #646cff;
+  transform: scale(1.05);
+}
+
+.clear-btn {
+  background-color: #d32f2f !important;
+}
+
+.clear-btn:hover {
+  background-color: #b71c1c !important;
+}
+
+.belt-speeds {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.belt-speeds button {
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  color: white;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1.2rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.belt-speeds button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.belt-speeds button.active {
+  border-color: white;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+  transform: scale(1.1);
+}
+
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-item.total {
+  background: rgba(255, 215, 0, 0.1);
+  border-color: rgba(255, 215, 0, 0.3);
+}
+
+.stat-item.resource-count {
+  background: rgba(76, 175, 80, 0.1);
+  border-color: rgba(76, 175, 80, 0.3);
+}
+
+.stat-item.insufficient {
+  background: rgba(244, 67, 54, 0.15);
+  border-color: rgba(244, 67, 54, 0.4);
+  animation: pulse-warning 1s ease-in-out infinite;
+}
+
+@keyframes pulse-warning {
+  0%, 100% {
+    border-color: rgba(244, 67, 54, 0.4);
+  }
+  50% {
+    border-color: rgba(244, 67, 54, 0.8);
+  }
+}
+
+.factory-cost {
+  text-align: center;
+  color: #888;
+  font-size: 0.85rem;
+  padding: 0.25rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.stat-icon {
+  font-size: 1.2rem;
+}
+
+.stat-value {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #FFD700;
+}
+
+.debug-toggle {
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  background-color: #333;
+  color: white;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.debug-toggle:hover {
+  border-color: #646cff;
+  transform: scale(1.05);
+}
+
+.debug-panel {
+  position: fixed;
+  right: 20px;
+  top: 120px;
+  background: rgba(26, 26, 26, 0.95);
+  border: 2px solid #444;
+  border-radius: 12px;
+  padding: 1rem;
+  z-index: 1000;
+  min-width: 250px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+}
+
+.debug-panel h4 {
+  margin: 0 0 1rem 0;
+  color: #646cff;
+  font-size: 1rem;
+}
+
+.debug-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.debug-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.debug-item span:first-child {
+  color: #888;
+}
+
+.debug-item span:last-child {
+  font-weight: bold;
+  color: #FFD700;
+}
+
+.debug-item .warning {
+  color: #ff9800 !important;
+}
+
+.debug-item .good {
+  color: #4CAF50 !important;
+}
+
+.debug-help {
+  border-top: 1px solid #444;
+  padding-top: 0.75rem;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.debug-help p {
+  margin: 0 0 0.5rem 0;
+  color: #aaa;
+}
+
+.debug-help ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style-type: disc;
+}
+
+.debug-help li {
+  margin-bottom: 0.25rem;
+  color: #888;
+}
+
+.grid {
+  display: grid;
+  gap: 0px;
+  background-color: transparent;
+  border: none;
+  padding: 0px;
+  transition: transform 0.1s ease-out;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center center;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform;
+}
+
+.cell {
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.1s;
+  position: relative;
+  overflow: visible;
+  pointer-events: all;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  outline: 1px solid transparent;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* Asegurar que las factories estén por encima de celdas adyacentes */
+.cell:has(.factory-input-indicator),
+.cell:has(.factory-output-indicator) {
+  z-index: 5;
+}
+
+.cell.empty-tile {
+  background-image: url('/factorio-like/assets/ground-tile.png');
+  background-size: 100% 100%;
+}
+
+.cell.wall-tile {
+  background-image: url('/factorio-like/assets/rock-tile.png');
+  background-size: 100% 100%;
+}
+
+.cell.metal-tile {
+  background-image: url('/factorio-like/assets/metal-rock-tile.png');
+  background-size: 100% 100%;
+}
+
+/* Cintas Tier 1 - Horizontal y Vertical */
+.cell.belt-tile-1-h {
+  background-image: url('/factorio-like/assets/belt-tile-1-h.png') !important;
+  background-size: 100% 100% !important;
+}
+
+.cell.belt-tile-1-v {
+  background-image: url('/factorio-like/assets/belt-tile-1-v.png') !important;
+  background-size: 100% 100% !important;
+}
+
+/* Cintas Tier 2 - Horizontal y Vertical */
+.cell.belt-tile-2-h {
+  background-image: url('/factorio-like/assets/belt-tile-2-h.png') !important;
+  background-size: 100% 100% !important;
+}
+
+.cell.belt-tile-2-v {
+  background-image: url('/factorio-like/assets/belt-tile-2-v.png') !important;
+  background-size: 100% 100% !important;
+}
+
+/* Cintas Tier 3 - Horizontal y Vertical */
+.cell.belt-tile-3-h {
+  background-image: url('/factorio-like/assets/belt-tile-3-h.png') !important;
+  background-size: 100% 100% !important;
+}
+
+.cell.belt-tile-3-v {
+  background-image: url('/factorio-like/assets/belt-tile-3-v.png') !important;
+  background-size: 100% 100% !important;
+}
+
+/* Cintas Tier 4 - Horizontal y Vertical */
+.cell.belt-tile-4-h {
+  background-image: url('/factorio-like/assets/belt-tile-4-h.png') !important;
+  background-size: 100% 100% !important;
+}
+
+.cell.belt-tile-4-v {
+  background-image: url('/factorio-like/assets/belt-tile-4-v.png') !important;
+  background-size: 100% 100% !important;
+}
+
+/* Cintas Tier 5 - Horizontal y Vertical */
+.cell.belt-tile-5-h {
+  background-image: url('/factorio-like/assets/belt-tile-5-h.png') !important;
+  background-size: 100% 100% !important;
+}
+
+.cell.belt-tile-5-v {
+  background-image: url('/factorio-like/assets/belt-tile-5-v.png') !important;
+  background-size: 100% 100% !important;
+}
+
+.cell:hover {
+  opacity: 0.8;
+}
+
+.cell-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 1;
+  user-select: none;
+}
+
+.belt-full {
+  border: 2px solid #f44336 !important;
+  box-shadow: inset 0 0 5px rgba(244, 67, 54, 0.5);
+}
+
+.factory-stored-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+  z-index: 7;
+  background-image: url('/factorio-like/assets/mineral-item-tile.png');
+  background-size: cover;
+  background-position: center;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0.8));
+  animation: pulse-star 2s ease-in-out infinite;
+}
+
+.factory-resource-count {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background-color: rgba(76, 175, 80, 0.9);
+  color: white;
+  font-size: 9px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 8;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+@keyframes pulse-star {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.15);
+    opacity: 0.8;
+  }
+}
+
+/* Indicadores de entrada/salida de fábrica - estilo raíles */
+.factory-input-indicator,
+.factory-output-indicator {
+  position: absolute;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.factory-input-indicator {
+  background: linear-gradient(to right, rgba(76, 175, 80, 0), #4CAF50, rgba(76, 175, 80, 0));
+  box-shadow: 0 0 6px rgba(76, 175, 80, 0.8);
+}
+
+.factory-output-indicator {
+  background: linear-gradient(to right, rgba(244, 67, 54, 0), #f44336, rgba(244, 67, 54, 0));
+  box-shadow: 0 0 6px rgba(244, 67, 54, 0.8);
+}
+
+/* Posiciones para entrada arriba */
+.factory-input-up {
+  top: -3px;
+  left: 2px;
+  right: 2px;
+  height: 3px;
+  background: linear-gradient(to bottom, rgba(76, 175, 80, 0), #4CAF50);
+}
+
+.factory-output-up {
+  bottom: -3px;
+  left: 2px;
+  right: 2px;
+  height: 3px;
+  background: linear-gradient(to top, rgba(244, 67, 54, 0), #f44336);
+}
+
+/* Posiciones para entrada derecha */
+.factory-input-right {
+  right: -3px;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  background: linear-gradient(to left, rgba(76, 175, 80, 0), #4CAF50);
+}
+
+.factory-output-right {
+  left: -3px;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  background: linear-gradient(to right, rgba(244, 67, 54, 0), #f44336);
+}
+
+/* Posiciones para entrada abajo */
+.factory-input-down {
+  bottom: -3px;
+  left: 2px;
+  right: 2px;
+  height: 3px;
+  background: linear-gradient(to top, rgba(76, 175, 80, 0), #4CAF50);
+}
+
+.factory-output-down {
+  top: -3px;
+  left: 2px;
+  right: 2px;
+  height: 3px;
+  background: linear-gradient(to bottom, rgba(244, 67, 54, 0), #f44336);
+}
+
+/* Posiciones para entrada izquierda */
+.factory-input-left {
+  left: -3px;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  background: linear-gradient(to right, rgba(76, 175, 80, 0), #4CAF50);
+}
+
+.factory-output-left {
+  right: -3px;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  background: linear-gradient(to left, rgba(244, 67, 54, 0), #f44336);
+}
+
+.item {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background-color: transparent;
+  border-radius: 0;
+  transform: translate(-50%, -50%);
+  box-shadow: none;
+  border: none;
+  pointer-events: none;
+  z-index: 10;
+  transition: left var(--tick-rate, 16ms) ease-out, top var(--tick-rate, 16ms) ease-out;
+  will-change: left, top;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.item.blocked {
+  filter: brightness(0.7) saturate(1.5) hue-rotate(-20deg);
+  transition: none;
+  animation: pulse-blocked 1s ease-in-out infinite;
+}
+
+@keyframes pulse-blocked {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}
+
+@media (max-width: 768px) {
+  .grid-container {
+    padding: 0.5rem;
+  }
+
+  .tools {
+    font-size: 0.9rem;
+  }
+}

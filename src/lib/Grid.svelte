@@ -1,8 +1,14 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { saveGridState, loadGridState, createEmptyGrid } from './gridUtils.js';
-  import { findResourceNodes, generateResourceFromNode, findFactoriesWithBelts, generateItemFromFactory, moveItems, countItemsAtPosition } from './beltSystem.js';
+  import { findResourceNodes, generateResourceFromNode, findFactoriesWithBelts, generateItemFromFactory, moveItems } from './beltSystem.js';
   import { generateProceduralMap } from './mapGenerator.js';
+  import { createGameLoop, updatePerformanceMetrics } from './gameLoop.js';
+  import { updateFactoryResources, rotateFactoryDirection } from './factoryLogic.js';
+  import { handleCellPlacement, isToolAvailable as checkToolAvailability, getCellColor, getCellIcon, getBeltBorderColor, getBeltOrientation } from './cellManagement.js';
+  import { getItemPosition as calculateItemPosition, createItemsByPositionMap, isBeltFull as checkBeltFull, updateStatsCache } from './itemPositioning.js';
+  import { createViewportController } from './viewportControl.js';
+  import './Grid.css';
 
   export let gridWidth = 50;
   export let gridHeight = 50;
@@ -36,14 +42,12 @@
   let showDebug = false;
 
   // Variables para zoom y pan
-  let scale = 1;
-  let panX = 0;
-  let panY = 0;
-  let isDragging = false;
-  let dragStartX = 0;
-  let dragStartY = 0;
-  let lastPanX = 0;
-  let lastPanY = 0;
+  const viewport = createViewportController();
+  $: viewportState = viewport.getState();
+  $: scale = viewportState.scale;
+  $: panX = viewportState.panX;
+  $: panY = viewportState.panY;
+  $: isDragging = viewportState.isDragging;
 
   // Calcular tickRate y baseSpeed basado en targetFPS
   $: {
@@ -100,86 +104,68 @@
   // Iniciar el game loop
   function startGameLoop() {
     if (gameLoop) return;
-    isRunning = true;
     
-    gameLoop = setInterval(() => {
-      if (!isRunning) return;
-      
-      const tickStart = performance.now();
-      tickCount++;
-      
-      // Generar recursos desde nodos
-      const now = Date.now();
-      if (now - lastResourceGeneration >= resourceGenerationRate) {
-        generateResources();
-        lastResourceGeneration = now;
-      }
-      
-      // Generar items desde fábricas hacia cintas
-      if (now - lastFactoryGeneration >= resourceGenerationRate) {
-        generateFromFactories();
-        lastFactoryGeneration = now;
-      }
-      
-      // Guardar el estado de items por fábrica antes de mover
-      const itemsByFactoryBefore = {};
-      items.forEach(item => {
-        if (item.stored) {
-          const key = `${item.x},${item.y}`;
-          itemsByFactoryBefore[key] = (itemsByFactoryBefore[key] || 0) + 1;
-        }
-      });
-      
-      // Mover items por las cintas
-      items = moveItems(grid, items, baseSpeed);
-      
-      // Contar items por fábrica después de mover
-      const itemsByFactoryAfter = {};
-      items.forEach(item => {
-        if (item.stored) {
-          const key = `${item.x},${item.y}`;
-          itemsByFactoryAfter[key] = (itemsByFactoryAfter[key] || 0) + 1;
-        }
-      });
-      
-      // Incrementar el contador de recursos de cada fábrica individualmente
-      for (const key in itemsByFactoryAfter) {
-        const [x, y] = key.split(',').map(Number);
-        const before = itemsByFactoryBefore[key] || 0;
-        const after = itemsByFactoryAfter[key];
+    gameLoop = createGameLoop({
+      tickRate,
+      onTick: () => {
+        const tickStart = performance.now();
+        tickCount++;
         
-        if (after > before && grid[y] && grid[y][x] && grid[y][x].type === 'factory') {
-          grid[y][x].storedResources = (grid[y][x].storedResources || 0) + (after - before);
-          playerResources += (after - before);
+        const now = Date.now();
+        if (now - lastResourceGeneration >= resourceGenerationRate) {
+          generateResources();
+          lastResourceGeneration = now;
         }
+        
+        if (now - lastFactoryGeneration >= resourceGenerationRate) {
+          generateFromFactories();
+          lastFactoryGeneration = now;
+        }
+        
+        const itemsByFactoryBefore = {};
+        items.forEach(item => {
+          if (item.stored) {
+            const key = `${item.x},${item.y}`;
+            itemsByFactoryBefore[key] = (itemsByFactoryBefore[key] || 0) + 1;
+          }
+        });
+        
+        items = moveItems(grid, items, baseSpeed);
+        
+        const itemsByFactoryAfter = {};
+        items.forEach(item => {
+          if (item.stored) {
+            const key = `${item.x},${item.y}`;
+            itemsByFactoryAfter[key] = (itemsByFactoryAfter[key] || 0) + 1;
+          }
+        });
+        
+        playerResources += updateFactoryResources(grid, itemsByFactoryBefore, itemsByFactoryAfter);
+        cachedStats = updateStatsCache(items);
+        
+        if (tickCount % 10 === 0) {
+          saveGrid();
+        }
+        
+        const tickEnd = performance.now();
+        const metrics = updatePerformanceMetrics({
+          fps, frameCount, avgTickTime, lastFrameTime, tickStart, tickEnd
+        });
+        fps = metrics.fps;
+        frameCount = metrics.frameCount;
+        avgTickTime = metrics.avgTickTime;
+        lastFrameTime = metrics.lastFrameTime;
       }
-      
-      // Actualizar cache de estadísticas
-      updateStatsCache();
-      
-      // Guardar estado solo cada 10 ticks (cada 2 segundos) para reducir operaciones de localStorage
-      if (tickCount % 10 === 0) {
-        saveGrid();
-      }
-      
-      // Calcular tiempo de tick
-      const tickEnd = performance.now();
-      avgTickTime = (avgTickTime * 0.9) + ((tickEnd - tickStart) * 0.1);
-      
-      // Calcular FPS
-      frameCount++;
-      if (now - lastFrameTime >= 1000) {
-        fps = frameCount;
-        frameCount = 0;
-        lastFrameTime = now;
-      }
-    }, tickRate);
+    });
+    
+    gameLoop.start();
+    isRunning = true;
   }
 
   // Detener el game loop
   function stopGameLoop() {
     if (gameLoop) {
-      clearInterval(gameLoop);
+      gameLoop.stop();
       gameLoop = null;
     }
     isRunning = false;
@@ -187,10 +173,9 @@
 
   // Alternar pausa
   function togglePause() {
-    if (isRunning) {
-      stopGameLoop();
-    } else {
-      startGameLoop();
+    if (gameLoop) {
+      gameLoop.toggle();
+      isRunning = gameLoop.isRunning();
     }
   }
 
@@ -227,11 +212,8 @@
   }
 
   // Rotar la dirección de entrada de fábrica antes de colocar
-  function rotateFactoryDirection() {
-    const directions = ['up', 'right', 'down', 'left'];
-    const currentIndex = directions.indexOf(factoryInputDirection);
-    const nextIndex = (currentIndex + 1) % directions.length;
-    factoryInputDirection = directions[nextIndex];
+  function handleRotateFactory() {
+    factoryInputDirection = rotateFactoryDirection(factoryInputDirection);
   }
 
   // Manejar clic derecho para rotar fábricas ya colocadas
@@ -253,197 +235,47 @@
   function handleKeyPress(event) {
     if (event.key === 'r' || event.key === 'R') {
       if (selectedTool === 'factory') {
-        rotateFactoryDirection();
+        handleRotateFactory();
       }
     }
   }
 
   // Manejar clic en una celda
   function handleCellClick(x, y) {
-    if (grid[y] && grid[y][x]) {
-      const currentType = grid[y][x].type;
-      
-      if (selectedTool === 'empty') {
-        // En New Game y Continue, solo se pueden borrar Belt y Factory
-        if (gameMode === 'newgame' || isContinueMode) {
-          if (currentType === 'conveyor' || currentType === 'factory') {
-            // Si es una fábrica, devolver el costo al jugador
-            if (currentType === 'factory') {
-              playerResources += FACTORY_COST;
-            }
-            grid[y][x].type = 'empty';
-            grid[y][x].content = null;
-            // Eliminar todos los items en esta posición
-            items = items.filter(item => !(item.x === x && item.y === y));
-          }
-          // Si es wall o resource, no hacer nada
-        } else {
-          // Creative mode: borrar cualquier cosa
-          // Si es una fábrica, devolver el costo al jugador
-          if (currentType === 'factory') {
-            playerResources += FACTORY_COST;
-          }
-          grid[y][x].type = 'empty';
-          grid[y][x].content = null;
-          // Eliminar todos los items en esta posición
-          items = items.filter(item => !(item.x === x && item.y === y));
-        }
-      } else {
-        // Si se hace clic en una fábrica con la herramienta de fábrica, rotarla
-        if (selectedTool === 'factory' && currentType === 'factory') {
-          const currentDir = grid[y][x].inputDirection || 'up';
-          const directions = ['up', 'right', 'down', 'left'];
-          const currentIndex = directions.indexOf(currentDir);
-          const nextIndex = (currentIndex + 1) % directions.length;
-          grid[y][x].inputDirection = directions[nextIndex];
-          grid = [...grid]; // Forzar reactividad
-          saveGrid();
-          return;
-        }
-        
-        // Colocar el elemento seleccionado
-        // En New Game y Continue, no se pueden colocar wall ni resource
-        if ((gameMode === 'newgame' || isContinueMode) && (selectedTool === 'wall' || selectedTool === 'resource')) {
-          return; // No hacer nada
-        }
-        
-        // No permitir colocar sobre una celda que ya tiene algo (excepto empty)
-        if (currentType !== 'empty') {
-          return; // No hacer nada si la celda ya está ocupada
-        }
-        
-        // Si es fábrica, verificar que tenga recursos suficientes
-        if (selectedTool === 'factory') {
-          if (playerResources < FACTORY_COST) {
-            return; // No se pueden construir fábricas sin recursos
-          }
-        }
-        
-        grid[y][x].type = selectedTool;
-        
-        // Si es cinta, asignar velocidad
-        if (selectedTool === 'conveyor') {
-          grid[y][x].speed = selectedBeltSpeed;
-        }
-        
-        // Si es fábrica, usar la dirección configurada y deducir recursos
-        if (selectedTool === 'factory') {
-          grid[y][x].inputDirection = factoryInputDirection;
-          grid[y][x].storedResources = 0; // Inicializar contador de recursos
-          playerResources -= FACTORY_COST;
-        }
-      }
-      grid = [...grid]; // Forzar reactividad
+    if (!grid[y] || !grid[y][x]) return;
+    
+    const currentType = grid[y][x].type;
+    
+    // Si se hace clic en una fábrica con la herramienta de fábrica, rotarla
+    if (selectedTool === 'factory' && currentType === 'factory') {
+      const directions = ['up', 'right', 'down', 'left'];
+      const currentDir = grid[y][x].inputDirection || 'up';
+      const currentIndex = directions.indexOf(currentDir);
+      const nextIndex = (currentIndex + 1) % directions.length;
+      grid[y][x].inputDirection = directions[nextIndex];
+      grid = [...grid];
+      saveGrid();
+      return;
+    }
+    
+    // Usar el módulo de cell management
+    const result = handleCellPlacement({
+      grid, x, y, selectedTool, gameMode, isContinueMode,
+      selectedBeltSpeed, factoryInputDirection, playerResources,
+      FACTORY_COST, items
+    });
+    
+    if (result.changed) {
+      grid = [...result.grid];
+      playerResources = result.playerResources;
+      if (result.items) items = result.items;
       saveGrid();
     }
   }
 
   // Verificar si una herramienta está disponible en el modo actual
   function isToolAvailable(tool) {
-    if (gameMode === 'creative' && !isContinueMode) {
-      return true; // Todas las herramientas disponibles solo en Creative nuevo
-    }
-    
-    // En New Game y Continue, solo Belt, Factory y Erase están disponibles
-    return tool === 'conveyor' || tool === 'factory' || tool === 'empty';
-  }
-
-  // Obtener el color de la celda según su tipo
-  function getCellColor(cell) {
-    switch (cell.type) {
-      case 'wall':
-        return '#555555'; // Gris original
-      case 'resource':
-        return '#2d4a2d';
-      case 'factory':
-        return '#1e3a5f';
-      case 'conveyor':
-        // Colores más sutiles para cintas
-        const speedColors = {
-          1: '#3d2817', // Marrón oscuro
-          2: '#3d3317', // Marrón amarillento oscuro
-          3: '#3d3d17', // Amarillo oscuro
-          4: '#173d22', // Verde oscuro
-          5: '#17333d'  // Cian oscuro
-        };
-        return speedColors[cell.speed || 1] || '#3d2817';
-      default:
-        return '#1a1a1a';
-    }
-  }
-
-  // Obtener el icono de la celda según su tipo
-  function getCellIcon(cell) {
-    switch (cell.type) {
-      case 'wall':
-        return ''; // Sin icono para el muro
-      case 'resource':
-        return ''; // Sin icono, se usará el tile de metal
-      case 'factory':
-        return '🏭';
-      case 'conveyor':
-        return ''; // Sin icono para cintas
-      default:
-        return '';
-    }
-  }
-
-  // Obtener el color del borde según la velocidad de la cinta
-  function getBeltBorderColor(speed) {
-    const colors = {
-      1: '#FF9800',  // Orange
-      2: '#FFC107',  // Gold/Yellow
-      3: '#FFEB3B',  // Bright Yellow
-      4: '#00E676',  // Green
-      5: '#00BCD4'   // Cyan
-    };
-    return colors[speed] || colors[1];
-  }
-
-  // Actualizar cache de estadísticas
-  function updateStatsCache() {
-    let stored = 0;
-    let inTransit = 0;
-    for (const item of items) {
-      if (item.stored) stored++;
-      else inTransit++;
-    }
-    cachedStats = { inTransit, stored, total: items.length };
-  }
-
-  // Verificar si una cinta está llena (usa el mapa de items)
-  function isBeltFull(x, y) {
-    const key = `${x},${y}`;
-    return (itemsByPosition[key]?.length || 0) >= 3;
-  }
-  
-  // Detectar si una cinta es horizontal o vertical basándose en las cintas y otros elementos adyacentes
-  function getBeltOrientation(x, y) {
-    if (!grid[y] || !grid[y][x] || grid[y][x].type !== 'conveyor') return 'horizontal';
-    
-    // Verificar cintas adyacentes
-    const hasLeftBelt = grid[y] && grid[y][x - 1] && grid[y][x - 1].type === 'conveyor';
-    const hasRightBelt = grid[y] && grid[y][x + 1] && grid[y][x + 1].type === 'conveyor';
-    const hasUpBelt = grid[y - 1] && grid[y - 1][x] && grid[y - 1][x].type === 'conveyor';
-    const hasDownBelt = grid[y + 1] && grid[y + 1][x] && grid[y + 1][x].type === 'conveyor';
-    
-    // Verificar si hay recursos o fábricas adyacentes (indican dirección del flujo)
-    const hasLeftResource = grid[y] && grid[y][x - 1] && (grid[y][x - 1].type === 'resource' || grid[y][x - 1].type === 'factory');
-    const hasRightResource = grid[y] && grid[y][x + 1] && (grid[y][x + 1].type === 'resource' || grid[y][x + 1].type === 'factory');
-    const hasUpResource = grid[y - 1] && grid[y - 1][x] && (grid[y - 1][x].type === 'resource' || grid[y - 1][x].type === 'factory');
-    const hasDownResource = grid[y + 1] && grid[y + 1][x] && (grid[y + 1][x].type === 'resource' || grid[y + 1][x].type === 'factory');
-    
-    const horizontalCount = (hasLeftBelt ? 1 : 0) + (hasRightBelt ? 1 : 0) + (hasLeftResource ? 1 : 0) + (hasRightResource ? 1 : 0);
-    const verticalCount = (hasUpBelt ? 1 : 0) + (hasDownBelt ? 1 : 0) + (hasUpResource ? 1 : 0) + (hasDownResource ? 1 : 0);
-    
-    // Si tiene más conexiones verticales que horizontales, es vertical
-    if (verticalCount > horizontalCount) return 'vertical';
-    // Si tiene más conexiones horizontales, o igual número, es horizontal
-    if (horizontalCount > 0) return 'horizontal';
-    // Si solo tiene verticales
-    if (verticalCount > 0) return 'vertical';
-    // Por defecto, horizontal
-    return 'horizontal';
+    return checkToolAvailability(tool, gameMode, isContinueMode);
   }
 
   // Contar items almacenados en una fábrica (usa el mapa de items)
@@ -477,136 +309,43 @@
   }
 
   // Crear mapa de items por posición para renderizado eficiente
-  $: itemsByPosition = items.reduce((map, item) => {
-    const key = `${item.x},${item.y}`;
-    if (!map[key]) map[key] = [];
-    map[key].push(item);
-    return map;
-  }, {});
+  $: itemsByPosition = createItemsByPositionMap(items);
 
-  // Calcular la posición visual del item basado en su progreso y dirección
+  // Calcular posición del item
   function getItemPosition(item, index, totalInCell) {
-    // Si está almacenado en una fábrica, posición fija
-    if (item.stored) {
-      // Distribuir items almacenados en una grid pequeña
-      const positions = [
-        { x: -6, y: -6 },
-        { x: 6, y: -6 },
-        { x: -6, y: 6 },
-        { x: 6, y: 6 },
-        { x: 0, y: 0 }
-      ];
-      const pos = positions[index % positions.length];
-      return { offsetX: pos.x, offsetY: pos.y };
-    }
+    return calculateItemPosition(item, index, cellSize);
+  }
 
-    const direction = {
-      dx: item.x - item.prevX,
-      dy: item.y - item.prevY
-    };
-
-    // Calcular offset basado en la dirección del movimiento
-    let offsetX = 0;
-    let offsetY = 0;
-
-    // Movimiento fluido continuo: mapear progress (0-1) a posición en la celda
-    // progress = 0: inicio de la celda (-50% de cellSize)
-    // progress = 1: final de la celda (+50% de cellSize)
-    const cellProgress = (item.progress - 0.5); // -0.5 a +0.5
-    
-    if (direction.dx !== 0) {
-      // Movimiento horizontal
-      const direction_multiplier = direction.dx > 0 ? 1 : -1;
-      offsetX = cellProgress * cellSize * direction_multiplier;
-      offsetY = 0;
-    } else if (direction.dy !== 0) {
-      // Movimiento vertical
-      const direction_multiplier = direction.dy > 0 ? 1 : -1;
-      offsetY = cellProgress * cellSize * direction_multiplier;
-      offsetX = 0;
-    }
-
-    return { offsetX, offsetY };
+  // Verificar si una cinta está llena
+  function isBeltFull(x, y) {
+    return checkBeltFull(itemsByPosition, x, y);
   }
 
   // Funciones de zoom y pan
   function handleWheel(event) {
-    event.preventDefault();
-    const delta = -event.deltaY;
-    const zoomFactor = delta > 0 ? 1.1 : 0.9;
-    const newScale = Math.max(0.3, Math.min(10, scale * zoomFactor));
-    scale = newScale;
+    const newScale = viewport.handleWheel(event);
+    viewportState = viewport.getState();
   }
 
   function handleMouseDown(event) {
-    // Solo iniciar drag con botón izquierdo o rueda del ratón
-    if (event.button === 0 || event.button === 1) {
-      event.preventDefault();
-      isDragging = true;
-      dragStartX = event.clientX;
-      dragStartY = event.clientY;
-      lastPanX = panX;
-      lastPanY = panY;
-    }
+    viewport.handleMouseDown(event);
+    viewportState = viewport.getState();
   }
 
   function handleMouseMove(event) {
-    if (isDragging) {
-      const deltaX = event.clientX - dragStartX;
-      const deltaY = event.clientY - dragStartY;
-      
-      // Calcular el tamaño del contenedor
-      const container = event.currentTarget;
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
-      
-      // Calcular el tamaño real del grid escalado
-      const scaledWidth = (gridWidth * cellSize) * scale;
-      const scaledHeight = (gridHeight * cellSize) * scale;
-      
-      // Calcular posición propuesta
-      const proposedPanX = lastPanX + deltaX;
-      const proposedPanY = lastPanY + deltaY;
-      
-      // Límites: el grid debe estar siempre visible
-      // Si el grid es más pequeño que el contenedor, centrarlo
-      // Si el grid es más grande, permitir moverlo pero mantener siempre parte visible
-      let maxPanX, minPanX, maxPanY, minPanY;
-      
-      if (scaledWidth < containerWidth) {
-        // Grid más pequeño que contenedor - mantener centrado
-        maxPanX = 0;
-        minPanX = 0;
-      } else {
-        // Grid más grande - permitir movimiento limitado
-        maxPanX = (scaledWidth - containerWidth) / 2;
-        minPanX = -maxPanX;
-      }
-      
-      if (scaledHeight < containerHeight) {
-        // Grid más pequeño que contenedor - mantener centrado
-        maxPanY = 0;
-        minPanY = 0;
-      } else {
-        // Grid más grande - permitir movimiento limitado
-        maxPanY = (scaledHeight - containerHeight) / 2;
-        minPanY = -maxPanY;
-      }
-      
-      // Aplicar límites
-      panX = Math.max(minPanX, Math.min(maxPanX, proposedPanX));
-      panY = Math.max(minPanY, Math.min(maxPanY, proposedPanY));
-    }
+    const newState = viewport.handleMouseMove(event, gridWidth, gridHeight, cellSize);
+    viewport.setState(newState);
+    viewportState = viewport.getState();
   }
 
   function handleMouseUp() {
-    isDragging = false;
+    viewport.handleMouseUp();
+    viewportState = viewport.getState();
   }
 
   function resetView() {
-    scale = 1;
-    panX = 0;
-    panY = 0;
+    viewport.reset();
+    viewportState = viewport.getState();
   }
 
 </script>
@@ -904,646 +643,3 @@
     {/each}
   </div>
 </div>
-
-<style>
-  .floating-toolbar {
-    position: fixed;
-    left: 20px;
-    top: 120px;
-    background: rgba(26, 26, 26, 0.95);
-    border: 2px solid #444;
-    border-radius: 12px;
-    padding: 1rem;
-    z-index: 1000;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(10px);
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    min-width: 80px;
-  }
-
-  .toolbar-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: center;
-  }
-
-  .toolbar-section h4 {
-    margin: 0;
-    font-size: 0.9rem;
-    color: #888;
-    text-align: center;
-  }
-
-  .grid-container {
-    width: 100%;
-    height: 100vh;
-    overflow: hidden;
-    padding: 120px 1rem 60px 140px;
-    user-select: none;
-    position: relative;
-  }
-
-  .tools {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: center;
-  }
-
-  .tools button {
-    width: 50px;
-    height: 50px;
-    padding: 0;
-    background-color: #333;
-    color: white;
-    border: 2px solid transparent;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .tools button:hover {
-    border-color: #646cff;
-    transform: scale(1.05);
-  }
-
-  .tools button.active {
-    border-color: #646cff;
-    background-color: #1a1a2e;
-    box-shadow: 0 0 10px rgba(100, 108, 255, 0.5);
-  }
-
-  .tools button.disabled {
-    background-color: #1a1a1a;
-    color: #555;
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-
-  .tools button.disabled:hover {
-    border-color: transparent;
-    transform: none;
-  }
-
-  .factory-rotation {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    align-items: stretch;
-  }
-
-  .rotate-btn {
-    padding: 0.5rem;
-    background-color: #333;
-    color: white;
-    border: 2px solid #555;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.9rem;
-    white-space: nowrap;
-  }
-
-  .rotate-btn:hover {
-    border-color: #646cff;
-    background-color: #404040;
-  }
-
-  .controls {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: center;
-  }
-
-  .controls button {
-    width: 50px;
-    height: 50px;
-    padding: 0;
-    background-color: #333;
-    color: white;
-    border: 2px solid transparent;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .controls button:hover {
-    border-color: #646cff;
-    transform: scale(1.05);
-  }
-
-  .clear-btn {
-    background-color: #d32f2f !important;
-  }
-
-  .clear-btn:hover {
-    background-color: #b71c1c !important;
-  }
-
-  .belt-speeds {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: center;
-  }
-
-  .belt-speeds button {
-    width: 50px;
-    height: 50px;
-    padding: 0;
-    color: white;
-    border: 2px solid transparent;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 1.2rem;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  }
-
-  .belt-speeds button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
-  }
-
-  .belt-speeds button.active {
-    border-color: white;
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
-    transform: scale(1.1);
-  }
-
-  .stats {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    width: 100%;
-  }
-
-  .stat-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .stat-item.total {
-    background: rgba(255, 215, 0, 0.1);
-    border-color: rgba(255, 215, 0, 0.3);
-  }
-
-  .stat-item.resource-count {
-    background: rgba(76, 175, 80, 0.1);
-    border-color: rgba(76, 175, 80, 0.3);
-  }
-
-  .stat-item.insufficient {
-    background: rgba(244, 67, 54, 0.15);
-    border-color: rgba(244, 67, 54, 0.4);
-    animation: pulse-warning 1s ease-in-out infinite;
-  }
-
-  @keyframes pulse-warning {
-    0%, 100% {
-      border-color: rgba(244, 67, 54, 0.4);
-    }
-    50% {
-      border-color: rgba(244, 67, 54, 0.8);
-    }
-  }
-
-  .factory-cost {
-    text-align: center;
-    color: #888;
-    font-size: 0.85rem;
-    padding: 0.25rem;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 4px;
-  }
-
-  .stat-icon {
-    font-size: 1.2rem;
-  }
-
-  .stat-value {
-    font-size: 1rem;
-    font-weight: bold;
-    color: #FFD700;
-  }
-
-  .debug-toggle {
-    width: 50px;
-    height: 50px;
-    padding: 0;
-    background-color: #333;
-    color: white;
-    border: 2px solid transparent;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .debug-toggle:hover {
-    border-color: #646cff;
-    transform: scale(1.05);
-  }
-
-  .debug-panel {
-    position: fixed;
-    right: 20px;
-    top: 120px;
-    background: rgba(26, 26, 26, 0.95);
-    border: 2px solid #444;
-    border-radius: 12px;
-    padding: 1rem;
-    z-index: 1000;
-    min-width: 250px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(10px);
-  }
-
-  .debug-panel h4 {
-    margin: 0 0 1rem 0;
-    color: #646cff;
-    font-size: 1rem;
-  }
-
-  .debug-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-  }
-
-  .debug-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.25rem 0.5rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
-    font-size: 0.9rem;
-  }
-
-  .debug-item span:first-child {
-    color: #888;
-  }
-
-  .debug-item span:last-child {
-    font-weight: bold;
-    color: #FFD700;
-  }
-
-  .debug-item .warning {
-    color: #ff9800 !important;
-  }
-
-  .debug-item .good {
-    color: #4CAF50 !important;
-  }
-
-  .debug-help {
-    border-top: 1px solid #444;
-    padding-top: 0.75rem;
-    font-size: 0.85rem;
-    color: #888;
-  }
-
-  .debug-help p {
-    margin: 0 0 0.5rem 0;
-    color: #aaa;
-  }
-
-  .debug-help ul {
-    margin: 0;
-    padding-left: 1.25rem;
-    list-style-type: disc;
-  }
-
-  .debug-help li {
-    margin-bottom: 0.25rem;
-    color: #888;
-  }
-
-  .grid {
-    display: grid;
-    gap: 0px;
-    background-color: transparent;
-    border: none;
-    padding: 0px;
-    transition: transform 0.1s ease-out;
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform-origin: center center;
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    will-change: transform;
-  }
-
-  .cell {
-    border: none;
-    cursor: pointer;
-    transition: opacity 0.1s;
-    position: relative;
-    overflow: visible;
-    pointer-events: all;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    outline: 1px solid transparent;
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-  }
-  
-  /* Asegurar que las factories estén por encima de celdas adyacentes */
-  .cell:has(.factory-input-indicator),
-  .cell:has(.factory-output-indicator) {
-    z-index: 5;
-  }
-  
-  .cell.empty-tile {
-    background-image: url('/factorio-like/assets/ground-tile.png');
-    background-size: 100% 100%;
-  }
-  
-  .cell.wall-tile {
-    background-image: url('/factorio-like/assets/rock-tile.png');
-    background-size: 100% 100%;
-  }
-  
-  .cell.metal-tile {
-    background-image: url('/factorio-like/assets/metal-rock-tile.png');
-    background-size: 100% 100%;
-  }
-  
-  /* Cintas Tier 1 - Horizontal y Vertical */
-  .cell.belt-tile-1-h {
-    background-image: url('/factorio-like/assets/belt-tile-1-h.png') !important;
-    background-size: 100% 100% !important;
-  }
-  
-  .cell.belt-tile-1-v {
-    background-image: url('/factorio-like/assets/belt-tile-1-v.png') !important;
-    background-size: 100% 100% !important;
-  }
-  
-  /* Cintas Tier 2 - Horizontal y Vertical */
-  .cell.belt-tile-2-h {
-    background-image: url('/factorio-like/assets/belt-tile-2-h.png') !important;
-    background-size: 100% 100% !important;
-  }
-  
-  .cell.belt-tile-2-v {
-    background-image: url('/factorio-like/assets/belt-tile-2-v.png') !important;
-    background-size: 100% 100% !important;
-  }
-  
-  /* Cintas Tier 3 - Horizontal y Vertical */
-  .cell.belt-tile-3-h {
-    background-image: url('/factorio-like/assets/belt-tile-3-h.png') !important;
-    background-size: 100% 100% !important;
-  }
-  
-  .cell.belt-tile-3-v {
-    background-image: url('/factorio-like/assets/belt-tile-3-v.png') !important;
-    background-size: 100% 100% !important;
-  }
-  
-  /* Cintas Tier 4 - Horizontal y Vertical */
-  .cell.belt-tile-4-h {
-    background-image: url('/factorio-like/assets/belt-tile-4-h.png') !important;
-    background-size: 100% 100% !important;
-  }
-  
-  .cell.belt-tile-4-v {
-    background-image: url('/factorio-like/assets/belt-tile-4-v.png') !important;
-    background-size: 100% 100% !important;
-  }
-  
-  /* Cintas Tier 5 - Horizontal y Vertical */
-  .cell.belt-tile-5-h {
-    background-image: url('/factorio-like/assets/belt-tile-5-h.png') !important;
-    background-size: 100% 100% !important;
-  }
-  
-  .cell.belt-tile-5-v {
-    background-image: url('/factorio-like/assets/belt-tile-5-v.png') !important;
-    background-size: 100% 100% !important;
-  }
-
-  .cell:hover {
-    opacity: 0.8;
-  }
-
-  .cell-icon {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 14px;
-    pointer-events: none;
-    z-index: 1;
-    user-select: none;
-  }
-
-  .belt-full {
-    border: 2px solid #f44336 !important;
-    box-shadow: inset 0 0 5px rgba(244, 67, 54, 0.5);
-  }
-
-  .factory-stored-indicator {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 12px;
-    height: 12px;
-    pointer-events: none;
-    z-index: 7;
-    background-image: url('/factorio-like/assets/mineral-item-tile.png');
-    background-size: cover;
-    background-position: center;
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-    filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0.8));
-    animation: pulse-star 2s ease-in-out infinite;
-  }
-
-  .factory-resource-count {
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    background-color: rgba(76, 175, 80, 0.9);
-    color: white;
-    font-size: 9px;
-    padding: 2px 4px;
-    border-radius: 3px;
-    font-weight: bold;
-    pointer-events: none;
-    z-index: 8;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-  }
-
-  @keyframes pulse-star {
-    0%, 100% {
-      transform: translate(-50%, -50%) scale(1);
-      opacity: 1;
-    }
-    50% {
-      transform: translate(-50%, -50%) scale(1.15);
-      opacity: 0.8;
-    }
-  }
-
-  /* Indicadores de entrada/salida de fábrica - estilo raíles */
-  .factory-input-indicator,
-  .factory-output-indicator {
-    position: absolute;
-    pointer-events: none;
-    z-index: 20;
-  }
-
-  .factory-input-indicator {
-    background: linear-gradient(to right, rgba(76, 175, 80, 0), #4CAF50, rgba(76, 175, 80, 0));
-    box-shadow: 0 0 6px rgba(76, 175, 80, 0.8);
-  }
-
-  .factory-output-indicator {
-    background: linear-gradient(to right, rgba(244, 67, 54, 0), #f44336, rgba(244, 67, 54, 0));
-    box-shadow: 0 0 6px rgba(244, 67, 54, 0.8);
-  }
-
-  /* Posiciones para entrada arriba */
-  .factory-input-up {
-    top: -3px;
-    left: 2px;
-    right: 2px;
-    height: 3px;
-    background: linear-gradient(to bottom, rgba(76, 175, 80, 0), #4CAF50);
-  }
-
-  .factory-output-up {
-    bottom: -3px;
-    left: 2px;
-    right: 2px;
-    height: 3px;
-    background: linear-gradient(to top, rgba(244, 67, 54, 0), #f44336);
-  }
-
-  /* Posiciones para entrada derecha */
-  .factory-input-right {
-    right: -3px;
-    top: 2px;
-    bottom: 2px;
-    width: 3px;
-    background: linear-gradient(to left, rgba(76, 175, 80, 0), #4CAF50);
-  }
-
-  .factory-output-right {
-    left: -3px;
-    top: 2px;
-    bottom: 2px;
-    width: 3px;
-    background: linear-gradient(to right, rgba(244, 67, 54, 0), #f44336);
-  }
-
-  /* Posiciones para entrada abajo */
-  .factory-input-down {
-    bottom: -3px;
-    left: 2px;
-    right: 2px;
-    height: 3px;
-    background: linear-gradient(to top, rgba(76, 175, 80, 0), #4CAF50);
-  }
-
-  .factory-output-down {
-    top: -3px;
-    left: 2px;
-    right: 2px;
-    height: 3px;
-    background: linear-gradient(to bottom, rgba(244, 67, 54, 0), #f44336);
-  }
-
-  /* Posiciones para entrada izquierda */
-  .factory-input-left {
-    left: -3px;
-    top: 2px;
-    bottom: 2px;
-    width: 3px;
-    background: linear-gradient(to right, rgba(76, 175, 80, 0), #4CAF50);
-  }
-
-  .factory-output-left {
-    right: -3px;
-    top: 2px;
-    bottom: 2px;
-    width: 3px;
-    background: linear-gradient(to left, rgba(244, 67, 54, 0), #f44336);
-  }
-
-  .item {
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    background-color: transparent;
-    border-radius: 0;
-    transform: translate(-50%, -50%);
-    box-shadow: none;
-    border: none;
-    pointer-events: none;
-    z-index: 10;
-    transition: left var(--tick-rate, 16ms) ease-out, top var(--tick-rate, 16ms) ease-out;
-    will-change: left, top;
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-  }
-
-  .item.blocked {
-    filter: brightness(0.7) saturate(1.5) hue-rotate(-20deg);
-    transition: none;
-    animation: pulse-blocked 1s ease-in-out infinite;
-  }
-
-  @keyframes pulse-blocked {
-    0%, 100% {
-      transform: translate(-50%, -50%) scale(1);
-    }
-    50% {
-      transform: translate(-50%, -50%) scale(1.1);
-    }
-  }
-
-  @media (max-width: 768px) {
-    .grid-container {
-      padding: 0.5rem;
-    }
-
-    .tools {
-      font-size: 0.9rem;
-    }
-  }
-</style>
