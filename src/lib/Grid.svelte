@@ -417,17 +417,24 @@
     return (itemsByPosition[key]?.length || 0) >= 3;
   }
   
-  // Detectar si una cinta es horizontal o vertical basándose en las cintas adyacentes
+  // Detectar si una cinta es horizontal o vertical basándose en las cintas y otros elementos adyacentes
   function getBeltOrientation(x, y) {
     if (!grid[y] || !grid[y][x] || grid[y][x].type !== 'conveyor') return 'horizontal';
     
-    const hasLeft = grid[y] && grid[y][x - 1] && grid[y][x - 1].type === 'conveyor';
-    const hasRight = grid[y] && grid[y][x + 1] && grid[y][x + 1].type === 'conveyor';
-    const hasUp = grid[y - 1] && grid[y - 1][x] && grid[y - 1][x].type === 'conveyor';
-    const hasDown = grid[y + 1] && grid[y + 1][x] && grid[y + 1][x].type === 'conveyor';
+    // Verificar cintas adyacentes
+    const hasLeftBelt = grid[y] && grid[y][x - 1] && grid[y][x - 1].type === 'conveyor';
+    const hasRightBelt = grid[y] && grid[y][x + 1] && grid[y][x + 1].type === 'conveyor';
+    const hasUpBelt = grid[y - 1] && grid[y - 1][x] && grid[y - 1][x].type === 'conveyor';
+    const hasDownBelt = grid[y + 1] && grid[y + 1][x] && grid[y + 1][x].type === 'conveyor';
     
-    const horizontalCount = (hasLeft ? 1 : 0) + (hasRight ? 1 : 0);
-    const verticalCount = (hasUp ? 1 : 0) + (hasDown ? 1 : 0);
+    // Verificar si hay recursos o fábricas adyacentes (indican dirección del flujo)
+    const hasLeftResource = grid[y] && grid[y][x - 1] && (grid[y][x - 1].type === 'resource' || grid[y][x - 1].type === 'factory');
+    const hasRightResource = grid[y] && grid[y][x + 1] && (grid[y][x + 1].type === 'resource' || grid[y][x + 1].type === 'factory');
+    const hasUpResource = grid[y - 1] && grid[y - 1][x] && (grid[y - 1][x].type === 'resource' || grid[y - 1][x].type === 'factory');
+    const hasDownResource = grid[y + 1] && grid[y + 1][x] && (grid[y + 1][x].type === 'resource' || grid[y + 1][x].type === 'factory');
+    
+    const horizontalCount = (hasLeftBelt ? 1 : 0) + (hasRightBelt ? 1 : 0) + (hasLeftResource ? 1 : 0) + (hasRightResource ? 1 : 0);
+    const verticalCount = (hasUpBelt ? 1 : 0) + (hasDownBelt ? 1 : 0) + (hasUpResource ? 1 : 0) + (hasDownResource ? 1 : 0);
     
     // Si tiene más conexiones verticales que horizontales, es vertical
     if (verticalCount > horizontalCount) return 'vertical';
@@ -550,7 +557,7 @@
     event.preventDefault();
     const delta = -event.deltaY;
     const zoomFactor = delta > 0 ? 1.1 : 0.9;
-    const newScale = Math.max(0.5, Math.min(3, scale * zoomFactor));
+    const newScale = Math.max(0.3, Math.min(10, scale * zoomFactor));
     scale = newScale;
   }
 
