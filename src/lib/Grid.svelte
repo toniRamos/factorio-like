@@ -738,7 +738,9 @@
       <button on:click={togglePause}>
         {isRunning ? '⏸' : '▶️'}
       </button>
-      <button class="clear-btn" on:click={clearGrid} title="Clear All">🗑️</button>
+      {#if gameMode === 'creative' && !isContinueMode}
+        <button class="clear-btn" on:click={clearGrid} title="Clear All">🗑️</button>
+      {/if}
       <button on:click={resetView} title="Reset Zoom/Pan">🔍</button>
     </div>
   </div>
