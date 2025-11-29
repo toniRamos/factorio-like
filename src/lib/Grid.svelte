@@ -378,7 +378,7 @@
       case 'wall':
         return ''; // Sin icono para el muro
       case 'resource':
-        return '💎';
+        return ''; // Sin icono, se usará el tile de metal
       case 'factory':
         return '🏭';
       case 'conveyor':
@@ -415,6 +415,28 @@
   function isBeltFull(x, y) {
     const key = `${x},${y}`;
     return (itemsByPosition[key]?.length || 0) >= 3;
+  }
+  
+  // Detectar si una cinta es horizontal o vertical basándose en las cintas adyacentes
+  function getBeltOrientation(x, y) {
+    if (!grid[y] || !grid[y][x] || grid[y][x].type !== 'conveyor') return 'horizontal';
+    
+    const hasLeft = grid[y] && grid[y][x - 1] && grid[y][x - 1].type === 'conveyor';
+    const hasRight = grid[y] && grid[y][x + 1] && grid[y][x + 1].type === 'conveyor';
+    const hasUp = grid[y - 1] && grid[y - 1][x] && grid[y - 1][x].type === 'conveyor';
+    const hasDown = grid[y + 1] && grid[y + 1][x] && grid[y + 1][x].type === 'conveyor';
+    
+    const horizontalCount = (hasLeft ? 1 : 0) + (hasRight ? 1 : 0);
+    const verticalCount = (hasUp ? 1 : 0) + (hasDown ? 1 : 0);
+    
+    // Si tiene más conexiones verticales que horizontales, es vertical
+    if (verticalCount > horizontalCount) return 'vertical';
+    // Si tiene más conexiones horizontales, o igual número, es horizontal
+    if (horizontalCount > 0) return 'horizontal';
+    // Si solo tiene verticales
+    if (verticalCount > 0) return 'vertical';
+    // Por defecto, horizontal
+    return 'horizontal';
   }
 
   // Contar items almacenados en una fábrica (usa el mapa de items)
@@ -828,14 +850,35 @@
         {@const cellKey = `${x},${y}`}
         {@const cellItems = itemsByPosition[cellKey] || []}
         {@const storedCount = playerResources}
+        {@const beltOrientation = cell.type === 'conveyor' ? getBeltOrientation(x, y) : ''}
         <div
           class="cell"
+          class:empty-tile={cell.type === 'empty'}
+          class:wall-tile={cell.type === 'wall'}
+          class:metal-tile={cell.type === 'resource'}
+          class:belt-tile-1-h={cell.type === 'conveyor' && (cell.speed || 1) === 1 && beltOrientation === 'horizontal'}
+          class:belt-tile-1-v={cell.type === 'conveyor' && (cell.speed || 1) === 1 && beltOrientation === 'vertical'}
+          class:belt-tile-2-h={cell.type === 'conveyor' && (cell.speed || 1) === 2 && beltOrientation === 'horizontal'}
+          class:belt-tile-2-v={cell.type === 'conveyor' && (cell.speed || 1) === 2 && beltOrientation === 'vertical'}
+          class:belt-tile-3-h={cell.type === 'conveyor' && (cell.speed || 1) === 3 && beltOrientation === 'horizontal'}
+          class:belt-tile-3-v={cell.type === 'conveyor' && (cell.speed || 1) === 3 && beltOrientation === 'vertical'}
+          class:belt-tile-4-h={cell.type === 'conveyor' && (cell.speed || 1) === 4 && beltOrientation === 'horizontal'}
+          class:belt-tile-4-v={cell.type === 'conveyor' && (cell.speed || 1) === 4 && beltOrientation === 'vertical'}
+          class:belt-tile-5-h={cell.type === 'conveyor' && (cell.speed || 1) === 5 && beltOrientation === 'horizontal'}
+          class:belt-tile-5-v={cell.type === 'conveyor' && (cell.speed || 1) === 5 && beltOrientation === 'vertical'}
           class:belt-full={cell.type === 'conveyor' && isBeltFull(x, y)}
+          data-orientation={cell.type === 'conveyor' ? beltOrientation : ''}
           style="
-            background-color: {getCellColor(cell)};
+            background-color: {(cell.type === 'empty' || cell.type === 'wall' || cell.type === 'resource' || cell.type === 'conveyor') ? 'transparent' : getCellColor(cell)};
             width: {cellSize}px;
             height: {cellSize}px;
-            border: {cell.type === 'conveyor' ? `3px solid ${getBeltBorderColor(cell.speed || 1)}` : (isBeltFull(x, y) ? '2px solid #f44336' : '1px solid #444')};
+            border: {cell.type === 'conveyor' ? 'none' : (isBeltFull(x, y) ? '2px solid #f44336' : 'none')};
+            box-shadow: {cell.type === 'conveyor' 
+              ? (beltOrientation === 'horizontal' 
+                ? `inset 0 1px 0 0 ${getBeltBorderColor(cell.speed || 1)}, inset 0 -1px 0 0 ${getBeltBorderColor(cell.speed || 1)}, 0 2px 6px ${getBeltBorderColor(cell.speed || 1)}30, 0 -2px 6px ${getBeltBorderColor(cell.speed || 1)}30`
+                : `inset 1px 0 0 0 ${getBeltBorderColor(cell.speed || 1)}, inset -1px 0 0 0 ${getBeltBorderColor(cell.speed || 1)}, 2px 0 6px ${getBeltBorderColor(cell.speed || 1)}30, -2px 0 6px ${getBeltBorderColor(cell.speed || 1)}30`)
+              : 'none'};
+            border-radius: 0;
           "
           on:click={() => handleCellClick(x, y)}
           on:contextmenu={(e) => handleRightClick(e, x, y)}
@@ -843,7 +886,7 @@
           role="button"
           tabindex="0"
         >
-          {#if cell.type !== 'empty'}
+          {#if cell.type !== 'empty' && cell.type !== 'wall' && cell.type !== 'resource'}
             <div class="cell-icon">{getCellIcon(cell)}</div>
           {/if}
           {#if cell.type === 'factory' && (cell.storedResources || 0) > 0}
@@ -863,6 +906,9 @@
                 style="
                   left: calc(50% + {pos.offsetX}px);
                   top: calc(50% + {pos.offsetY}px);
+                  background-image: url('/factorio-like/assets/mineral-item-tile.png');
+                  background-size: cover;
+                  background-position: center;
                 "
               />
             {/if}
@@ -1216,24 +1262,105 @@
 
   .grid {
     display: grid;
-    gap: 1px;
-    background-color: #333;
-    border: 2px solid #555;
-    padding: 1px;
+    gap: 0px;
+    background-color: transparent;
+    border: none;
+    padding: 0px;
     transition: transform 0.1s ease-out;
     position: absolute;
     left: 50%;
     top: 50%;
     transform-origin: center center;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: transform;
   }
 
   .cell {
-    border: 1px solid #444;
+    border: none;
     cursor: pointer;
     transition: opacity 0.1s;
     position: relative;
     overflow: visible;
     pointer-events: all;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    outline: 1px solid transparent;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+  
+  .cell.empty-tile {
+    background-image: url('/factorio-like/assets/ground-tile.png');
+    background-size: 100% 100%;
+  }
+  
+  .cell.wall-tile {
+    background-image: url('/factorio-like/assets/rock-tile.png');
+    background-size: 100% 100%;
+  }
+  
+  .cell.metal-tile {
+    background-image: url('/factorio-like/assets/metal-rock-tile.png');
+    background-size: 100% 100%;
+  }
+  
+  /* Cintas Tier 1 - Horizontal y Vertical */
+  .cell.belt-tile-1-h {
+    background-image: url('/factorio-like/assets/belt-tile-1-h.png') !important;
+    background-size: 100% 100% !important;
+  }
+  
+  .cell.belt-tile-1-v {
+    background-image: url('/factorio-like/assets/belt-tile-1-v.png') !important;
+    background-size: 100% 100% !important;
+  }
+  
+  /* Cintas Tier 2 - Horizontal y Vertical */
+  .cell.belt-tile-2-h {
+    background-image: url('/factorio-like/assets/belt-tile-2-h.png') !important;
+    background-size: 100% 100% !important;
+  }
+  
+  .cell.belt-tile-2-v {
+    background-image: url('/factorio-like/assets/belt-tile-2-v.png') !important;
+    background-size: 100% 100% !important;
+  }
+  
+  /* Cintas Tier 3 - Horizontal y Vertical */
+  .cell.belt-tile-3-h {
+    background-image: url('/factorio-like/assets/belt-tile-3-h.png') !important;
+    background-size: 100% 100% !important;
+  }
+  
+  .cell.belt-tile-3-v {
+    background-image: url('/factorio-like/assets/belt-tile-3-v.png') !important;
+    background-size: 100% 100% !important;
+  }
+  
+  /* Cintas Tier 4 - Horizontal y Vertical */
+  .cell.belt-tile-4-h {
+    background-image: url('/factorio-like/assets/belt-tile-4-h.png') !important;
+    background-size: 100% 100% !important;
+  }
+  
+  .cell.belt-tile-4-v {
+    background-image: url('/factorio-like/assets/belt-tile-4-v.png') !important;
+    background-size: 100% 100% !important;
+  }
+  
+  /* Cintas Tier 5 - Horizontal y Vertical */
+  .cell.belt-tile-5-h {
+    background-image: url('/factorio-like/assets/belt-tile-5-h.png') !important;
+    background-size: 100% 100% !important;
+  }
+  
+  .cell.belt-tile-5-v {
+    background-image: url('/factorio-like/assets/belt-tile-5-v.png') !important;
+    background-size: 100% 100% !important;
   }
 
   .cell:hover {
@@ -1370,23 +1497,23 @@
 
   .item {
     position: absolute;
-    width: 10px;
-    height: 10px;
-    background-color: #FFD700;
-    border-radius: 50%;
+    width: 12px;
+    height: 12px;
+    background-color: transparent;
+    border-radius: 0;
     transform: translate(-50%, -50%);
-    box-shadow: 0 0 6px rgba(255, 215, 0, 0.9);
-    border: 1px solid #FFA500;
+    box-shadow: none;
+    border: none;
     pointer-events: none;
     z-index: 10;
     transition: left var(--tick-rate, 16ms) ease-out, top var(--tick-rate, 16ms) ease-out;
     will-change: left, top;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
   }
 
   .item.blocked {
-    background-color: #FF5722;
-    border-color: #D84315;
-    box-shadow: 0 0 6px rgba(255, 87, 34, 0.9);
+    filter: brightness(0.7) saturate(1.5) hue-rotate(-20deg);
     transition: none;
     animation: pulse-blocked 1s ease-in-out infinite;
   }
