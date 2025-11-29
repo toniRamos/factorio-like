@@ -876,7 +876,7 @@
             <div class="cell-icon">{getCellIcon(cell)}</div>
           {/if}
           {#if cell.type === 'factory' && (cell.storedResources || 0) > 0}
-            <div class="factory-stored-indicator">⭐</div>
+            <div class="factory-stored-indicator"></div>
           {/if}
           {#if cell.type === 'factory'}
             {@const inputDir = cell.inputDirection || 'up'}
@@ -1380,9 +1380,15 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 8px;
+    width: 12px;
+    height: 12px;
     pointer-events: none;
     z-index: 7;
+    background-image: url('/factorio-like/assets/mineral-item-tile.png');
+    background-size: cover;
+    background-position: center;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
     filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0.8));
     animation: pulse-star 2s ease-in-out infinite;
   }
