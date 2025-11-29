@@ -1300,6 +1300,12 @@
     -webkit-transform: translateZ(0);
   }
   
+  /* Asegurar que las factories estén por encima de celdas adyacentes */
+  .cell:has(.factory-input-indicator),
+  .cell:has(.factory-output-indicator) {
+    z-index: 5;
+  }
+  
   .cell.empty-tile {
     background-image: url('/factorio-like/assets/ground-tile.png');
     background-size: 100% 100%;
@@ -1428,78 +1434,90 @@
     }
   }
 
-  /* Indicadores de entrada/salida de fábrica */
+  /* Indicadores de entrada/salida de fábrica - estilo raíles */
   .factory-input-indicator,
   .factory-output-indicator {
     position: absolute;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
     pointer-events: none;
-    z-index: 6;
-    border: 2px solid rgba(0, 0, 0, 0.4);
+    z-index: 20;
   }
 
   .factory-input-indicator {
-    background-color: #4CAF50;
-    box-shadow: 0 0 8px rgba(76, 175, 80, 1), inset 0 0 4px rgba(255, 255, 255, 0.6);
+    background: linear-gradient(to right, rgba(76, 175, 80, 0), #4CAF50, rgba(76, 175, 80, 0));
+    box-shadow: 0 0 6px rgba(76, 175, 80, 0.8);
   }
 
   .factory-output-indicator {
-    background-color: #f44336;
-    box-shadow: 0 0 8px rgba(244, 67, 54, 1), inset 0 0 4px rgba(255, 255, 255, 0.6);
+    background: linear-gradient(to right, rgba(244, 67, 54, 0), #f44336, rgba(244, 67, 54, 0));
+    box-shadow: 0 0 6px rgba(244, 67, 54, 0.8);
   }
 
   /* Posiciones para entrada arriba */
   .factory-input-up {
-    top: -5px;
-    left: 50%;
-    transform: translateX(-50%);
+    top: -3px;
+    left: 2px;
+    right: 2px;
+    height: 3px;
+    background: linear-gradient(to bottom, rgba(76, 175, 80, 0), #4CAF50);
   }
 
   .factory-output-up {
-    bottom: -5px;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: -3px;
+    left: 2px;
+    right: 2px;
+    height: 3px;
+    background: linear-gradient(to top, rgba(244, 67, 54, 0), #f44336);
   }
 
   /* Posiciones para entrada derecha */
   .factory-input-right {
-    right: -5px;
-    top: 50%;
-    transform: translateY(-50%);
+    right: -3px;
+    top: 2px;
+    bottom: 2px;
+    width: 3px;
+    background: linear-gradient(to left, rgba(76, 175, 80, 0), #4CAF50);
   }
 
   .factory-output-right {
-    left: -5px;
-    top: 50%;
-    transform: translateY(-50%);
+    left: -3px;
+    top: 2px;
+    bottom: 2px;
+    width: 3px;
+    background: linear-gradient(to right, rgba(244, 67, 54, 0), #f44336);
   }
 
   /* Posiciones para entrada abajo */
   .factory-input-down {
-    bottom: -5px;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: -3px;
+    left: 2px;
+    right: 2px;
+    height: 3px;
+    background: linear-gradient(to top, rgba(76, 175, 80, 0), #4CAF50);
   }
 
   .factory-output-down {
-    top: -5px;
-    left: 50%;
-    transform: translateX(-50%);
+    top: -3px;
+    left: 2px;
+    right: 2px;
+    height: 3px;
+    background: linear-gradient(to bottom, rgba(244, 67, 54, 0), #f44336);
   }
 
   /* Posiciones para entrada izquierda */
   .factory-input-left {
-    left: -5px;
-    top: 50%;
-    transform: translateY(-50%);
+    left: -3px;
+    top: 2px;
+    bottom: 2px;
+    width: 3px;
+    background: linear-gradient(to right, rgba(76, 175, 80, 0), #4CAF50);
   }
 
   .factory-output-left {
-    right: -5px;
-    top: 50%;
-    transform: translateY(-50%);
+    right: -3px;
+    top: 2px;
+    bottom: 2px;
+    width: 3px;
+    background: linear-gradient(to left, rgba(244, 67, 54, 0), #f44336);
   }
 
   .item {
