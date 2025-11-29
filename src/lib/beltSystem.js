@@ -315,12 +315,13 @@ export function moveItems(grid, items, baseSpeed = 0.15) {
         updatedItem.blocked = false;
         newItems.push(updatedItem);
       } else {
-        // Mover a la siguiente celda (cinta)
+        // Mover a la siguiente celda (cinta) y mantener el exceso de progreso
+        const overflow = updatedItem.progress - 1;
         updatedItem.prevX = item.x;
         updatedItem.prevY = item.y;
         updatedItem.x = nextPos.x;
         updatedItem.y = nextPos.y;
-        updatedItem.progress = 0;
+        updatedItem.progress = overflow; // Transferir el exceso para movimiento fluido
         updatedItem.blocked = false;
         newItems.push(updatedItem);
       }

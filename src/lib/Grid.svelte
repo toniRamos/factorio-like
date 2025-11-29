@@ -509,43 +509,20 @@
     let offsetX = 0;
     let offsetY = 0;
 
-    // Para cintas: dividir la celda en 3 posiciones fijas
-    // Posición 0 (inicio): -33% de la celda
-    // Posición 1 (medio): 0% de la celda  
-    // Posición 2 (final): +33% de la celda
-    const positions = [-0.33, 0, 0.33];
-    const progressPositions = [0.25, 0.5, 0.75]; // A qué progreso aparece cada item
-    
-    // Determinar en qué "slot" está este item basado en su progreso
-    let slot = 0;
-    if (item.progress >= 0.66) slot = 2;
-    else if (item.progress >= 0.33) slot = 1;
-    else slot = 0;
-
-    // Calcular la posición base según el slot
-    const basePosition = positions[slot];
-    
-    // Calcular el progreso dentro del slot (0-1)
-    const slotProgress = (item.progress % 0.34) / 0.34;
+    // Movimiento fluido continuo: mapear progress (0-1) a posición en la celda
+    // progress = 0: inicio de la celda (-50% de cellSize)
+    // progress = 1: final de la celda (+50% de cellSize)
+    const cellProgress = (item.progress - 0.5); // -0.5 a +0.5
     
     if (direction.dx !== 0) {
       // Movimiento horizontal
       const direction_multiplier = direction.dx > 0 ? 1 : -1;
-      // Interpolar entre posiciones
-      const nextSlot = Math.min(slot + 1, 2);
-      const currentPos = positions[slot];
-      const nextPos = positions[nextSlot];
-      const interpolated = currentPos + (nextPos - currentPos) * slotProgress;
-      offsetX = interpolated * cellSize * direction_multiplier;
+      offsetX = cellProgress * cellSize * direction_multiplier;
       offsetY = 0;
     } else if (direction.dy !== 0) {
       // Movimiento vertical
       const direction_multiplier = direction.dy > 0 ? 1 : -1;
-      const nextSlot = Math.min(slot + 1, 2);
-      const currentPos = positions[slot];
-      const nextPos = positions[nextSlot];
-      const interpolated = currentPos + (nextPos - currentPos) * slotProgress;
-      offsetY = interpolated * cellSize * direction_multiplier;
+      offsetY = cellProgress * cellSize * direction_multiplier;
       offsetX = 0;
     }
 
