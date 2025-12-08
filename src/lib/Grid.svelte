@@ -313,7 +313,7 @@
 
   // Calcular posición del item
   function getItemPosition(item, index, totalInCell) {
-    return calculateItemPosition(item, index, cellSize);
+    return calculateItemPosition(item, index, cellSize, grid);
   }
 
   // Verificar si una cinta está llena
@@ -575,7 +575,7 @@
         {@const cellKey = `${x},${y}`}
         {@const cellItems = itemsByPosition[cellKey] || []}
         {@const storedCount = playerResources}
-        {@const beltOrientation = cell.type === 'conveyor' ? getBeltOrientation(grid, x, y) : ''}
+        {@const beltOrientation = cell.type === 'conveyor' ? getBeltOrientation(grid, x, y) : 'horizontal'}
         <div
           class="cell"
           class:empty-tile={cell.type === 'empty'}

@@ -190,11 +190,25 @@ export function getBeltOrientation(grid, x, y) {
   const hasUpResource = grid[y - 1] && grid[y - 1][x] && (grid[y - 1][x].type === 'resource' || grid[y - 1][x].type === 'factory');
   const hasDownResource = grid[y + 1] && grid[y + 1][x] && (grid[y + 1][x].type === 'resource' || grid[y + 1][x].type === 'factory');
   
-  const horizontalCount = (hasLeftBelt ? 1 : 0) + (hasRightBelt ? 1 : 0) + (hasLeftResource ? 1 : 0) + (hasRightResource ? 1 : 0);
-  const verticalCount = (hasUpBelt ? 1 : 0) + (hasDownBelt ? 1 : 0) + (hasUpResource ? 1 : 0) + (hasDownResource ? 1 : 0);
+  const hasLeft = hasLeftBelt || hasLeftResource;
+  const hasRight = hasRightBelt || hasRightResource;
+  const hasUp = hasUpBelt || hasUpResource;
+  const hasDown = hasDownBelt || hasDownResource;
   
-  if (verticalCount > horizontalCount) return 'vertical';
-  if (horizontalCount > 0) return 'horizontal';
-  if (verticalCount > 0) return 'vertical';
+  const horizontalCount = (hasLeft ? 1 : 0) + (hasRight ? 1 : 0);
+  const verticalCount = (hasUp ? 1 : 0) + (hasDown ? 1 : 0);
+  
+  // Si solo hay conexiones horizontales o verticales (línea recta)
+  if (verticalCount > horizontalCount) {
+    return 'vertical';
+  }
+  if (horizontalCount > 0) {
+    return 'horizontal';
+  }
+  if (verticalCount > 0) {
+    return 'vertical';
+  }
+  
   return 'horizontal';
 }
+
