@@ -452,6 +452,27 @@
   background-size: 100% 100% !important;
 }
 
+/* Curvas de Cintas Tier 1 */
+.cell.belt-curve-up-right {
+  background-image: url('/factorio-like/assets/belt-tile-1-curve-up-right.png') !important;
+  background-size: 100% 100% !important;
+}
+
+.cell.belt-curve-right-down {
+  background-image: url('/factorio-like/assets/belt-tile-1-curve-right-down.png') !important;
+  background-size: 100% 100% !important;
+}
+
+.cell.belt-curve-down-left {
+  background-image: url('/factorio-like/assets/belt-tile-1-curve-down-left.png') !important;
+  background-size: 100% 100% !important;
+}
+
+.cell.belt-curve-left-up {
+  background-image: url('/factorio-like/assets/belt-tile-1-curve-left-up.png') !important;
+  background-size: 100% 100% !important;
+}
+
 .cell:hover {
   opacity: 0.8;
 }

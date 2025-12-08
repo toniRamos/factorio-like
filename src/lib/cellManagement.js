@@ -228,25 +228,30 @@ export function getBeltCurveInfo(grid, x, y) {
   // Es una curva si tiene conexiones tanto horizontales como verticales
   if (horizontalCount > 0 && verticalCount > 0) {
     const sides = [];
+    let curveType = '';
     
     // Determinar qué lados externos iluminar según el tipo de curva
     if (hasUp && hasRight) {
       // Curva ↓→ (entrada arriba, salida derecha)
       sides.push('left', 'bottom');
+      curveType = 'up-right';
     } else if (hasRight && hasDown) {
       // Curva →↓ (entrada derecha, salida abajo)
       sides.push('left', 'top');
+      curveType = 'right-down';
     } else if (hasDown && hasLeft) {
       // Curva ↓← (entrada abajo, salida izquierda)
       sides.push('right', 'top');
+      curveType = 'down-left';
     } else if (hasLeft && hasUp) {
       // Curva ←↑ (entrada izquierda, salida arriba)
       sides.push('right', 'bottom');
+      curveType = 'left-up';
     }
     
-    return { isCurve: true, sides };
+    return { isCurve: true, sides, curveType };
   }
   
-  return { isCurve: false, sides: [] };
+  return { isCurve: false, sides: [], curveType: '' };
 }
 

@@ -576,7 +576,7 @@
         {@const cellItems = itemsByPosition[cellKey] || []}
         {@const storedCount = playerResources}
         {@const beltOrientation = cell.type === 'conveyor' ? getBeltOrientation(grid, x, y) : 'horizontal'}
-        {@const curveInfo = cell.type === 'conveyor' ? getBeltCurveInfo(grid, x, y) : { isCurve: false, sides: [] }}
+        {@const curveInfo = cell.type === 'conveyor' ? getBeltCurveInfo(grid, x, y) : { isCurve: false, sides: [], curveType: '' }}
         {@const beltColor = getBeltBorderColor(cell.speed || 1)}
         <div
           class="cell"
@@ -584,18 +584,24 @@
           class:wall-tile={cell.type === 'wall'}
           class:metal-tile={cell.type === 'resource' && (!cell.resourceType || cell.resourceType === 'mineral')}
           class:silver-tile={cell.type === 'resource' && cell.resourceType === 'silver'}
-          class:belt-tile-1-h={cell.type === 'conveyor' && (cell.speed || 1) === 1 && beltOrientation === 'horizontal'}
-          class:belt-tile-1-v={cell.type === 'conveyor' && (cell.speed || 1) === 1 && beltOrientation === 'vertical'}
-          class:belt-tile-2-h={cell.type === 'conveyor' && (cell.speed || 1) === 2 && beltOrientation === 'horizontal'}
-          class:belt-tile-2-v={cell.type === 'conveyor' && (cell.speed || 1) === 2 && beltOrientation === 'vertical'}
-          class:belt-tile-3-h={cell.type === 'conveyor' && (cell.speed || 1) === 3 && beltOrientation === 'horizontal'}
-          class:belt-tile-3-v={cell.type === 'conveyor' && (cell.speed || 1) === 3 && beltOrientation === 'vertical'}
-          class:belt-tile-4-h={cell.type === 'conveyor' && (cell.speed || 1) === 4 && beltOrientation === 'horizontal'}
-          class:belt-tile-4-v={cell.type === 'conveyor' && (cell.speed || 1) === 4 && beltOrientation === 'vertical'}
-          class:belt-tile-5-h={cell.type === 'conveyor' && (cell.speed || 1) === 5 && beltOrientation === 'horizontal'}
-          class:belt-tile-5-v={cell.type === 'conveyor' && (cell.speed || 1) === 5 && beltOrientation === 'vertical'}
+          class:belt-tile-1-h={cell.type === 'conveyor' && (cell.speed || 1) === 1 && beltOrientation === 'horizontal' && !curveInfo.isCurve}
+          class:belt-tile-1-v={cell.type === 'conveyor' && (cell.speed || 1) === 1 && beltOrientation === 'vertical' && !curveInfo.isCurve}
+          class:belt-tile-2-h={cell.type === 'conveyor' && (cell.speed || 1) === 2 && beltOrientation === 'horizontal' && !curveInfo.isCurve}
+          class:belt-tile-2-v={cell.type === 'conveyor' && (cell.speed || 1) === 2 && beltOrientation === 'vertical' && !curveInfo.isCurve}
+          class:belt-tile-3-h={cell.type === 'conveyor' && (cell.speed || 1) === 3 && beltOrientation === 'horizontal' && !curveInfo.isCurve}
+          class:belt-tile-3-v={cell.type === 'conveyor' && (cell.speed || 1) === 3 && beltOrientation === 'vertical' && !curveInfo.isCurve}
+          class:belt-tile-4-h={cell.type === 'conveyor' && (cell.speed || 1) === 4 && beltOrientation === 'horizontal' && !curveInfo.isCurve}
+          class:belt-tile-4-v={cell.type === 'conveyor' && (cell.speed || 1) === 4 && beltOrientation === 'vertical' && !curveInfo.isCurve}
+          class:belt-tile-5-h={cell.type === 'conveyor' && (cell.speed || 1) === 5 && beltOrientation === 'horizontal' && !curveInfo.isCurve}
+          class:belt-tile-5-v={cell.type === 'conveyor' && (cell.speed || 1) === 5 && beltOrientation === 'vertical' && !curveInfo.isCurve}
+          class:belt-curve-up-right={cell.type === 'conveyor' && curveInfo.isCurve && curveInfo.curveType === 'up-right'}
+          class:belt-curve-right-down={cell.type === 'conveyor' && curveInfo.isCurve && curveInfo.curveType === 'right-down'}
+          class:belt-curve-down-left={cell.type === 'conveyor' && curveInfo.isCurve && curveInfo.curveType === 'down-left'}
+          class:belt-curve-left-up={cell.type === 'conveyor' && curveInfo.isCurve && curveInfo.curveType === 'left-up'}
           class:belt-full={cell.type === 'conveyor' && isBeltFull(x, y)}
           data-orientation={cell.type === 'conveyor' ? beltOrientation : ''}
+          data-curve-type={cell.type === 'conveyor' && curveInfo.isCurve ? curveInfo.curveType : ''}
+          data-belt-speed={cell.type === 'conveyor' ? (cell.speed || 1) : ''}
           style="
             background-color: {(cell.type === 'empty' || cell.type === 'wall' || cell.type === 'resource' || cell.type === 'conveyor') ? 'transparent' : getCellColor(cell)};
             width: {cellSize}px;
