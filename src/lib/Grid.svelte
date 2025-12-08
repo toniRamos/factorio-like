@@ -5,7 +5,7 @@
   import { generateProceduralMap } from './mapGenerator.js';
   import { createGameLoop, updatePerformanceMetrics } from './gameLoop.js';
   import { updateFactoryResources, rotateFactoryDirection } from './factoryLogic.js';
-  import { handleCellPlacement, isToolAvailable as checkToolAvailability, getCellColor, getCellIcon, getBeltBorderColor, getBeltOrientation } from './cellManagement.js';
+  import { handleCellPlacement, isToolAvailable as checkToolAvailability, getCellColor, getCellIcon, getBeltBorderColor, getBeltOrientation, getBeltCurveInfo } from './cellManagement.js';
   import { getItemPosition as calculateItemPosition, createItemsByPositionMap, isBeltFull as checkBeltFull, updateStatsCache } from './itemPositioning.js';
   import { createViewportController } from './viewportControl.js';
   import './Grid.css';
@@ -576,6 +576,8 @@
         {@const cellItems = itemsByPosition[cellKey] || []}
         {@const storedCount = playerResources}
         {@const beltOrientation = cell.type === 'conveyor' ? getBeltOrientation(grid, x, y) : 'horizontal'}
+        {@const curveInfo = cell.type === 'conveyor' ? getBeltCurveInfo(grid, x, y) : { isCurve: false, sides: [] }}
+        {@const beltColor = getBeltBorderColor(cell.speed || 1)}
         <div
           class="cell"
           class:empty-tile={cell.type === 'empty'}
@@ -599,9 +601,18 @@
             height: {cellSize}px;
             border: {cell.type === 'conveyor' ? 'none' : (isBeltFull(x, y) ? '2px solid #f44336' : 'none')};
             box-shadow: {cell.type === 'conveyor' 
-              ? (beltOrientation === 'horizontal' 
-                ? `inset 0 1px 0 0 ${getBeltBorderColor(cell.speed || 1)}, inset 0 -1px 0 0 ${getBeltBorderColor(cell.speed || 1)}, 0 2px 6px ${getBeltBorderColor(cell.speed || 1)}30, 0 -2px 6px ${getBeltBorderColor(cell.speed || 1)}30`
-                : `inset 1px 0 0 0 ${getBeltBorderColor(cell.speed || 1)}, inset -1px 0 0 0 ${getBeltBorderColor(cell.speed || 1)}, 2px 0 6px ${getBeltBorderColor(cell.speed || 1)}30, -2px 0 6px ${getBeltBorderColor(cell.speed || 1)}30`)
+              ? (curveInfo.isCurve 
+                ? (() => {
+                    const shadows = [];
+                    if (curveInfo.sides.includes('top')) shadows.push(`inset 0 1px 0 0 ${beltColor}`, `0 2px 6px ${beltColor}30`);
+                    if (curveInfo.sides.includes('bottom')) shadows.push(`inset 0 -1px 0 0 ${beltColor}`, `0 -2px 6px ${beltColor}30`);
+                    if (curveInfo.sides.includes('left')) shadows.push(`inset 1px 0 0 0 ${beltColor}`, `2px 0 6px ${beltColor}30`);
+                    if (curveInfo.sides.includes('right')) shadows.push(`inset -1px 0 0 0 ${beltColor}`, `-2px 0 6px ${beltColor}30`);
+                    return shadows.join(', ');
+                  })()
+                : (beltOrientation === 'horizontal' 
+                  ? `inset 0 1px 0 0 ${beltColor}, inset 0 -1px 0 0 ${beltColor}, 0 2px 6px ${beltColor}30, 0 -2px 6px ${beltColor}30`
+                  : `inset 1px 0 0 0 ${beltColor}, inset -1px 0 0 0 ${beltColor}, 2px 0 6px ${beltColor}30, -2px 0 6px ${beltColor}30`))
               : 'none'};
             border-radius: 0;
           "

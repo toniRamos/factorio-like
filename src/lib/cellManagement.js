@@ -212,3 +212,41 @@ export function getBeltOrientation(grid, x, y) {
   return 'horizontal';
 }
 
+export function getBeltCurveInfo(grid, x, y) {
+  if (!grid[y] || !grid[y][x] || grid[y][x].type !== 'conveyor') {
+    return { isCurve: false, sides: [] };
+  }
+  
+  const hasLeft = grid[y] && grid[y][x - 1] && (grid[y][x - 1].type === 'conveyor' || grid[y][x - 1].type === 'resource' || grid[y][x - 1].type === 'factory');
+  const hasRight = grid[y] && grid[y][x + 1] && (grid[y][x + 1].type === 'conveyor' || grid[y][x + 1].type === 'resource' || grid[y][x + 1].type === 'factory');
+  const hasUp = grid[y - 1] && grid[y - 1][x] && (grid[y - 1][x].type === 'conveyor' || grid[y - 1][x].type === 'resource' || grid[y - 1][x].type === 'factory');
+  const hasDown = grid[y + 1] && grid[y + 1][x] && (grid[y + 1][x].type === 'conveyor' || grid[y + 1][x].type === 'resource' || grid[y + 1][x].type === 'factory');
+  
+  const horizontalCount = (hasLeft ? 1 : 0) + (hasRight ? 1 : 0);
+  const verticalCount = (hasUp ? 1 : 0) + (hasDown ? 1 : 0);
+  
+  // Es una curva si tiene conexiones tanto horizontales como verticales
+  if (horizontalCount > 0 && verticalCount > 0) {
+    const sides = [];
+    
+    // Determinar qué lados externos iluminar según el tipo de curva
+    if (hasUp && hasRight) {
+      // Curva ↓→ (entrada arriba, salida derecha)
+      sides.push('left', 'bottom');
+    } else if (hasRight && hasDown) {
+      // Curva →↓ (entrada derecha, salida abajo)
+      sides.push('left', 'top');
+    } else if (hasDown && hasLeft) {
+      // Curva ↓← (entrada abajo, salida izquierda)
+      sides.push('right', 'top');
+    } else if (hasLeft && hasUp) {
+      // Curva ←↑ (entrada izquierda, salida arriba)
+      sides.push('right', 'bottom');
+    }
+    
+    return { isCurve: true, sides };
+  }
+  
+  return { isCurve: false, sides: [] };
+}
+
