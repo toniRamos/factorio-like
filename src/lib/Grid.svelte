@@ -575,7 +575,7 @@
         {@const cellKey = `${x},${y}`}
         {@const cellItems = itemsByPosition[cellKey] || []}
         {@const storedCount = playerResources}
-        {@const beltOrientation = cell.type === 'conveyor' ? getBeltOrientation(x, y) : ''}
+        {@const beltOrientation = cell.type === 'conveyor' ? getBeltOrientation(grid, x, y) : ''}
         <div
           class="cell"
           class:empty-tile={cell.type === 'empty'}
