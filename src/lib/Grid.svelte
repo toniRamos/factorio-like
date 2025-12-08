@@ -140,7 +140,7 @@
           }
         });
         
-        playerResources += updateFactoryResources(grid, itemsByFactoryBefore, itemsByFactoryAfter);
+        playerResources += updateFactoryResources(grid, itemsByFactoryBefore, itemsByFactoryAfter, items);
         cachedStats = updateStatsCache(items);
         
         if (tickCount % 10 === 0) {
@@ -582,7 +582,8 @@
           class="cell"
           class:empty-tile={cell.type === 'empty'}
           class:wall-tile={cell.type === 'wall'}
-          class:metal-tile={cell.type === 'resource'}
+          class:metal-tile={cell.type === 'resource' && (!cell.resourceType || cell.resourceType === 'mineral')}
+          class:silver-tile={cell.type === 'resource' && cell.resourceType === 'silver'}
           class:belt-tile-1-h={cell.type === 'conveyor' && (cell.speed || 1) === 1 && beltOrientation === 'horizontal'}
           class:belt-tile-1-v={cell.type === 'conveyor' && (cell.speed || 1) === 1 && beltOrientation === 'vertical'}
           class:belt-tile-2-h={cell.type === 'conveyor' && (cell.speed || 1) === 2 && beltOrientation === 'horizontal'}
@@ -626,7 +627,9 @@
             <div class="cell-icon">{getCellIcon(cell)}</div>
           {/if}
           {#if cell.type === 'factory' && (cell.storedResources || 0) > 0}
-            <div class="factory-stored-indicator"></div>
+            {@const factoryResourceType = cell.storedResourceType || 'mineral'}
+            {@const factoryItemImage = factoryResourceType === 'silver' ? '/factorio-like/assets/silver-item-tile.svg' : '/factorio-like/assets/mineral-item-tile.png'}
+            <div class="factory-stored-indicator" style="background-image: url('{factoryItemImage}');"></div>
           {/if}
           {#if cell.type === 'factory'}
             {@const inputDir = cell.inputDirection || 'up'}
@@ -635,6 +638,7 @@
           {/if}
           {#each cellItems as item, index (item.id)}
             {@const pos = getItemPosition(item, index, cellItems.length)}
+            {@const itemImage = item.resourceType === 'silver' ? '/factorio-like/assets/silver-item-tile.svg' : '/factorio-like/assets/mineral-item-tile.png'}
             {#if !item.stored}
               <div 
                 class="item"
@@ -642,7 +646,7 @@
                 style="
                   left: calc(50% + {pos.offsetX}px);
                   top: calc(50% + {pos.offsetY}px);
-                  background-image: url('/factorio-like/assets/mineral-item-tile.png');
+                  background-image: url('{itemImage}');
                   background-size: cover;
                   background-position: center;
                 "

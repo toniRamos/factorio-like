@@ -392,6 +392,11 @@
   background-size: 100% 100%;
 }
 
+.cell.silver-tile {
+  background-image: url('/factorio-like/assets/silver-rock-tile.svg');
+  background-size: 100% 100%;
+}
+
 /* Cintas Tier 1 - Horizontal y Vertical */
 .cell.belt-tile-1-h {
   background-image: url('/factorio-like/assets/belt-tile-1-h.png') !important;
@@ -476,7 +481,6 @@
   height: 12px;
   pointer-events: none;
   z-index: 7;
-  background-image: url('/factorio-like/assets/mineral-item-tile.png');
   background-size: cover;
   background-position: center;
   image-rendering: pixelated;

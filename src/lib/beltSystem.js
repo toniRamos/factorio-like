@@ -168,6 +168,8 @@ function isComingFromInputDirection(fromX, fromY, factoryX, factoryY, inputDirec
 // Generar un nuevo recurso desde un nodo de recurso
 export function generateResourceFromNode(grid, x, y, items) {
   const adjacentBelts = getAdjacentBelts(grid, x, y);
+  const resourceNode = grid[y] && grid[y][x];
+  const resourceType = resourceNode?.resourceType || 'mineral';
   
   if (adjacentBelts.length > 0) {
     // Elegir la primera cinta disponible que no esté llena
@@ -182,6 +184,7 @@ export function generateResourceFromNode(grid, x, y, items) {
           prevY: y,
           progress: 0, // 0-1, progreso en la celda actual
           type: 'resource',
+          resourceType: resourceType,
           stored: false,
           blocked: false
         };

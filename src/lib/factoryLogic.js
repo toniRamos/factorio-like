@@ -1,6 +1,6 @@
 // Factory related logic
 
-export function updateFactoryResources(grid, itemsByFactoryBefore, itemsByFactoryAfter) {
+export function updateFactoryResources(grid, itemsByFactoryBefore, itemsByFactoryAfter, items) {
   let resourcesGained = 0;
   
   for (const key in itemsByFactoryAfter) {
@@ -11,6 +11,14 @@ export function updateFactoryResources(grid, itemsByFactoryBefore, itemsByFactor
     if (after > before && grid[y] && grid[y][x] && grid[y][x].type === 'factory') {
       const gain = after - before;
       grid[y][x].storedResources = (grid[y][x].storedResources || 0) + gain;
+      
+      // Determinar el tipo de recurso almacenado
+      const factoryItems = items.filter(item => item.x === x && item.y === y && item.stored);
+      if (factoryItems.length > 0) {
+        // Usar el tipo del último item almacenado
+        grid[y][x].storedResourceType = factoryItems[factoryItems.length - 1].resourceType || 'mineral';
+      }
+      
       resourcesGained += gain;
     }
   }

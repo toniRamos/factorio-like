@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generar Assets de Plata</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f0f0f0;
+    }
+    canvas {
+      border: 2px solid #333;
+      margin: 10px;
+      image-rendering: pixelated;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    h3 {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Generar Assets de Plata</h1>
+    <p>Haz clic en los botones para descargar las imágenes de plata.</p>
+    
+    <h3>Nodo de Recurso de Plata (silver-rock-tile.png)</h3>
+    <canvas id="silverRockCanvas" width="64" height="64"></canvas>
+    <button onclick="downloadSilverRock()">Descargar silver-rock-tile.png</button>
+    
+    <h3>Item de Plata (silver-item-tile.png)</h3>
+    <canvas id="silverItemCanvas" width="32" height="32"></canvas>
+    <button onclick="downloadSilverItem()">Descargar silver-item-tile.png</button>
+  </div>
+
+  <script>
+    // Nodo de recurso de plata
+    function createSilverRock() {
+      const canvas = document.getElementById('silverRockCanvas');
+      const ctx = canvas.getContext('2d');
+      
+      // Fondo gris plateado oscuro
+      ctx.fillStyle = '#5a6268';
+      ctx.fillRect(0, 0, 64, 64);
+      
+      // Textura de roca
+      for (let i = 0; i < 50; i++) {
+        const x = Math.random() * 64;
+        const y = Math.random() * 64;
+        const size = Math.random() * 3 + 1;
+        ctx.fillStyle = `rgba(${200 + Math.random() * 55}, ${200 + Math.random() * 55}, ${200 + Math.random() * 55}, 0.6)`;
+        ctx.fillRect(x, y, size, size);
+      }
+      
+      // Emoji de plata/moneda en el centro
+      ctx.font = '40px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('⚪', 32, 32);
+    }
+    
+    // Item de plata
+    function createSilverItem() {
+      const canvas = document.getElementById('silverItemCanvas');
+      const ctx = canvas.getContext('2d');
+      
+      // Fondo transparente
+      ctx.clearRect(0, 0, 32, 32);
+      
+      // Círculo plateado brillante
+      const gradient = ctx.createRadialGradient(16, 16, 2, 16, 16, 14);
+      gradient.addColorStop(0, '#ffffff');
+      gradient.addColorStop(0.3, '#e8e8e8');
+      gradient.addColorStop(0.6, '#c0c0c0');
+      gradient.addColorStop(1, '#a0a0a0');
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(16, 16, 14, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Borde
+      ctx.strokeStyle = '#808080';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // Brillo
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.beginPath();
+      ctx.arc(12, 12, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    function downloadSilverRock() {
+      const canvas = document.getElementById('silverRockCanvas');
+      const link = document.createElement('a');
+      link.download = 'silver-rock-tile.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    }
+    
+    function downloadSilverItem() {
+      const canvas = document.getElementById('silverItemCanvas');
+      const link = document.createElement('a');
+      link.download = 'silver-item-tile.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    }
+    
+    // Generar al cargar
+    createSilverRock();
+    createSilverItem();
+  </script>
+</body>
+</html>

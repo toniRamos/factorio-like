@@ -81,7 +81,10 @@ export function generateProceduralMap(width, height) {
     }
     
     if (hasAccess) {
+      // 50% mineral, 50% plata
+      const resourceType = Math.random() < 0.5 ? 'mineral' : 'silver';
       grid[y][x].type = 'resource';
+      grid[y][x].resourceType = resourceType;
       resourcesPlaced++;
     }
   }
